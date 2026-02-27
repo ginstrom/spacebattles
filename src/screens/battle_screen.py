@@ -32,6 +32,7 @@ class BattleScreen(BaseScreen):
 
         self.cpu_fire_at_ms = None
         self.CPU_DELAY_MS = 900
+        self.ATTACK_ANIM_MS = 240
 
         self.weapon_buttons = {}
         self.weapon_detail_toggles = {}
@@ -41,6 +42,7 @@ class BattleScreen(BaseScreen):
         self.cpu_expanded_weapons = set()
         self.ui_elements = {}
         self.panel_expanded = True
+        self.attack_animation = None
         self.toggle_tab_rect = pygame.Rect(
             WIDTH - TAB_W, HEIGHT // 2 - TAB_H // 2, TAB_W, TAB_H)
 
@@ -89,6 +91,7 @@ class BattleScreen(BaseScreen):
                 self.message = "Your turn: choose a weapon."
                 self.winner = None
                 self.cpu_fire_at_ms = None
+                self.attack_animation = None
                 self.weapon_buttons.clear()
                 self.weapon_detail_toggles.clear()
                 self.expanded_weapons.clear()
@@ -133,6 +136,7 @@ class BattleScreen(BaseScreen):
                             weapon = self.player.weapons[idx]
                             hit, dmg = CombatSystem.execute_attack(
                                 self.player, weapon, self.cpu)
+                            self._start_attack_animation(True, weapon.name, now)
                             if hit:
                                 self.message = (
                                     f"You fired {weapon.name} "
@@ -180,6 +184,7 @@ class BattleScreen(BaseScreen):
                         weapon = random.choice(available)
                         hit, dmg = CombatSystem.execute_attack(
                             self.cpu, weapon, self.player)
+                        self._start_attack_animation(False, weapon.name, now)
                         if hit:
                             self.message = (
                                 f"Computer fired {weapon.name} "
@@ -217,6 +222,7 @@ class BattleScreen(BaseScreen):
 
         self.map.draw(screen, map_w, self.player, self.cpu,
                       self.turn, self.winner, self.font, self.small_font)
+        self._draw_attack_animation(screen, map_w)
 
         if self.panel_expanded:
             self._draw_side_panel(screen, panel_x)
@@ -227,6 +233,49 @@ class BattleScreen(BaseScreen):
 
         if self.winner is not None:
             self._draw_winner_overlay(screen)
+
+    def _start_attack_animation(self, player_fired, weapon_name, now_ms):
+        color = RED if weapon_name == "Laser" else YELLOW
+        start = (
+            WIDTH // 2,
+            HEIGHT * 3 // 4 if player_fired else HEIGHT // 4,
+        )
+        end = (
+            WIDTH // 2,
+            HEIGHT // 4 if player_fired else HEIGHT * 3 // 4,
+        )
+        self.attack_animation = {
+            "color": color,
+            "start": start,
+            "end": end,
+            "started_at_ms": now_ms,
+            "duration_ms": self.ATTACK_ANIM_MS,
+        }
+
+    def _draw_attack_animation(self, screen, map_w):
+        if self.attack_animation is None:
+            return
+
+        now = pygame.time.get_ticks()
+        elapsed = now - self.attack_animation["started_at_ms"]
+        duration = self.attack_animation["duration_ms"]
+        if elapsed >= duration:
+            self.attack_animation = None
+            return
+
+        progress = max(0.0, min(1.0, elapsed / duration))
+        beam_w = max(2, int(7 * (1.0 - progress)))
+
+        old_clip = screen.get_clip()
+        screen.set_clip(pygame.Rect(0, 0, map_w, HEIGHT))
+        pygame.draw.line(
+            screen,
+            self.attack_animation["color"],
+            self.attack_animation["start"],
+            self.attack_animation["end"],
+            beam_w,
+        )
+        screen.set_clip(old_clip)
 
     def _draw_side_panel(self, surf, panel_x):
         panel_rect = pygame.Rect(panel_x, 0, PANEL_W, HEIGHT)

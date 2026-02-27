@@ -50,6 +50,9 @@ class TestScreens(unittest.TestCase):
             # Phase remains FIRE in multi-fire mode until End Turn is clicked
             self.assertEqual(self.screen.phase, PHASE_FIRE)
             self.assertIn("fired", self.screen.message)
+            self.assertIsNotNone(self.screen.attack_animation)
+            self.assertEqual(
+                self.screen.attack_animation["color"], (230, 80, 80))
 
     @patch('pygame.time.get_ticks')
     def test_handle_event_end_turn(self, mock_get_ticks):
@@ -83,6 +86,47 @@ class TestScreens(unittest.TestCase):
 
             mock_attack.assert_called_once()
             self.assertEqual(self.screen.phase, PHASE_END)
+            self.assertIsNotNone(self.screen.attack_animation)
+            self.assertEqual(
+                self.screen.attack_animation["color"], (230, 80, 80))
+
+    @patch('pygame.draw.rect')
+    @patch('pygame.draw.line')
+    @patch('pygame.time.get_ticks')
+    def test_draw_renders_attack_animation(
+        self, mock_get_ticks, mock_line, mock_rect
+    ):
+        self.screen.attack_animation = {
+            "color": (230, 80, 80),
+            "start": (100, 100),
+            "end": (200, 200),
+            "started_at_ms": 1000,
+            "duration_ms": 240,
+        }
+        mock_get_ticks.return_value = 1100
+        mock_surf = MagicMock(spec=pygame.Surface)
+        with patch.object(self.screen.map, 'draw'):
+            self.screen.draw(mock_surf)
+        self.assertTrue(mock_line.called)
+
+    @patch('pygame.draw.rect')
+    @patch('pygame.draw.line')
+    @patch('pygame.time.get_ticks')
+    def test_draw_expires_attack_animation(
+        self, mock_get_ticks, mock_line, mock_rect
+    ):
+        self.screen.attack_animation = {
+            "color": (230, 80, 80),
+            "start": (100, 100),
+            "end": (200, 200),
+            "started_at_ms": 1000,
+            "duration_ms": 240,
+        }
+        mock_get_ticks.return_value = 1300
+        mock_surf = MagicMock(spec=pygame.Surface)
+        with patch.object(self.screen.map, 'draw'):
+            self.screen.draw(mock_surf)
+        self.assertIsNone(self.screen.attack_animation)
 
     @patch('pygame.time.get_ticks')
     def test_restart(self, mock_get_ticks):
