@@ -1,0 +1,13 @@
+Laser:
+  damage_min: 40
+  damage_max: 70
+  cooldown: 2
+  hit_chance: 90
+  charges: null
+
+Ion Beam:
+  damage_min: 80
+  damage_max: 120
+  cooldown: 3
+  hit_chance: 75
+  charges: null

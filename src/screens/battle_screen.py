@@ -1,5 +1,5 @@
 """
-The main battle screen implementation, managing turn-based combat 
+The main battle screen implementation, managing turn-based combat
 flow, player interaction, and CPU logic.
 """
 import pygame
@@ -12,6 +12,7 @@ from src.utils.helpers import make_stars, wrap_text
 from src.ui.map import Map
 from src.ui.elements import draw_info_card
 from src.systems.combat import CombatSystem
+
 
 class BattleScreen(BaseScreen):
     def __init__(self, screen_manager):
@@ -40,7 +41,8 @@ class BattleScreen(BaseScreen):
         self.cpu_expanded_weapons = set()
         self.ui_elements = {}
         self.panel_expanded = True
-        self.toggle_tab_rect = pygame.Rect(WIDTH - TAB_W, HEIGHT // 2 - TAB_H // 2, TAB_W, TAB_H)
+        self.toggle_tab_rect = pygame.Rect(
+            WIDTH - TAB_W, HEIGHT // 2 - TAB_H // 2, TAB_W, TAB_H)
 
     def _make_game(self):
         # Create unique instances for each ship
@@ -48,16 +50,20 @@ class BattleScreen(BaseScreen):
         p_weapons = []
         laser = self.available_weapons["Laser"]
         ion = self.available_weapons["Ion Beam"]
-        
+
         # Two lasers
-        p_weapons.append(Weapon(laser.name, laser.damage_range, laser.cooldown, laser.hit_chance, 0, laser.charges))
-        p_weapons.append(Weapon(laser.name, laser.damage_range, laser.cooldown, laser.hit_chance, 0, laser.charges))
+        p_weapons.append(Weapon(laser.name, laser.damage_range,
+                         laser.cooldown, laser.hit_chance, 0, laser.charges))
+        p_weapons.append(Weapon(laser.name, laser.damage_range,
+                         laser.cooldown, laser.hit_chance, 0, laser.charges))
         # One ion beam
-        p_weapons.append(Weapon(ion.name, ion.damage_range, ion.cooldown, ion.hit_chance, 0, ion.charges))
-            
+        p_weapons.append(Weapon(ion.name, ion.damage_range,
+                         ion.cooldown, ion.hit_chance, 0, ion.charges))
+
         c_weapons = []
         # Computer only gets Laser
-        c_weapons.append(Weapon(laser.name, laser.damage_range, laser.cooldown, laser.hit_chance, 0, laser.charges))
+        c_weapons.append(Weapon(laser.name, laser.damage_range,
+                         laser.cooldown, laser.hit_chance, 0, laser.charges))
 
         player = Ship(
             name="Player",
@@ -125,17 +131,28 @@ class BattleScreen(BaseScreen):
                     for idx, btn_rect in self.weapon_buttons.items():
                         if btn_rect.collidepoint(pos):
                             weapon = self.player.weapons[idx]
-                            hit, dmg = CombatSystem.execute_attack(self.player, weapon, self.cpu)
+                            hit, dmg = CombatSystem.execute_attack(
+                                self.player, weapon, self.cpu)
                             if hit:
-                                self.message = f"You fired {weapon.name} for {dmg} damage. You can fire more weapons or click 'End Turn'."
+                                self.message = (
+                                    f"You fired {weapon.name} "
+                                    f"for {dmg} damage. "
+                                    "You can fire more weapons. "
+                                    "Click 'End Turn'."
+                                )
                             else:
-                                self.message = f"You fired {weapon.name} and MISSED. You can fire more weapons or click 'End Turn'."
-                            
+                                self.message = (
+                                    f"You fired {weapon.name} "
+                                    "and MISSED. "
+                                    "You can fire more weapons. "
+                                    "Click 'End Turn'."
+                                )
+
                             if self.cpu.is_dead():
                                 self.winner = "Player"
                                 self.message = "You win! Press R to restart."
                             break
-                
+
                 et_rect = self.ui_elements.get("end_turn")
                 if et_rect and et_rect.collidepoint(pos):
                     self.turn = CPU_TURN
@@ -150,7 +167,10 @@ class BattleScreen(BaseScreen):
         now = pygame.time.get_ticks()
         if self.winner is None and self.turn == CPU_TURN:
             if self.phase == PHASE_FIRE:
-                if self.cpu_fire_at_ms is not None and now >= self.cpu_fire_at_ms:
+                if (
+                    self.cpu_fire_at_ms is not None
+                    and now >= self.cpu_fire_at_ms
+                ):
                     available = [w for w in self.cpu.weapons if w.can_fire()]
                     if not available:
                         self.message = "Computer has no weapons left."
@@ -158,12 +178,18 @@ class BattleScreen(BaseScreen):
                         self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
                     else:
                         weapon = random.choice(available)
-                        hit, dmg = CombatSystem.execute_attack(self.cpu, weapon, self.player)
+                        hit, dmg = CombatSystem.execute_attack(
+                            self.cpu, weapon, self.player)
                         if hit:
-                            self.message = f"Computer fired {weapon.name} for {dmg} damage."
+                            self.message = (
+                                f"Computer fired {weapon.name} "
+                                f"for {dmg} damage."
+                            )
                         else:
-                            self.message = f"Computer fired {weapon.name} and MISSED."
-                            
+                            self.message = (
+                                f"Computer fired {weapon.name} and MISSED."
+                            )
+
                         if self.player.is_dead():
                             self.winner = "Computer"
                             self.message = "You lose. Press R to restart."
@@ -171,12 +197,16 @@ class BattleScreen(BaseScreen):
                             self.phase = PHASE_END
                             self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
             elif self.phase == PHASE_END:
-                if self.cpu_fire_at_ms is not None and now >= self.cpu_fire_at_ms:
+                if (
+                    self.cpu_fire_at_ms is not None
+                    and now >= self.cpu_fire_at_ms
+                ):
                     self.turn = PLAYER_TURN
                     self.phase = PHASE_FIRE
                     self.message = "Your turn: choose a weapon."
                     self.cpu_fire_at_ms = None
-                    # Tick CPU weapons at start of player turn (which is end of CPU turn)
+                    # Tick CPU weapons at start of player turn (which is end of
+                    # CPU turn)
                     for w in self.cpu.weapons:
                         w.tick()
 
@@ -185,7 +215,8 @@ class BattleScreen(BaseScreen):
         panel_x = WIDTH - PANEL_W if self.panel_expanded else WIDTH
         map_w = WIDTH - PANEL_W if self.panel_expanded else WIDTH
 
-        self.map.draw(screen, map_w, self.player, self.cpu, self.turn, self.winner, self.font, self.small_font)
+        self.map.draw(screen, map_w, self.player, self.cpu,
+                      self.turn, self.winner, self.font, self.small_font)
 
         if self.panel_expanded:
             self._draw_side_panel(screen, panel_x)
@@ -200,7 +231,8 @@ class BattleScreen(BaseScreen):
     def _draw_side_panel(self, surf, panel_x):
         panel_rect = pygame.Rect(panel_x, 0, PANEL_W, HEIGHT)
         pygame.draw.rect(surf, PANEL_BG, panel_rect)
-        pygame.draw.line(surf, PANEL_BORDER, (panel_x, 0), (panel_x, HEIGHT), 1)
+        pygame.draw.line(surf, PANEL_BORDER, (panel_x, 0),
+                         (panel_x, HEIGHT), 1)
 
         inner_x = panel_x + PANEL_PAD
         inner_w = PANEL_W - 2 * PANEL_PAD
@@ -210,10 +242,24 @@ class BattleScreen(BaseScreen):
         cpu_card_rect = pygame.Rect(inner_x, PANEL_PAD, inner_w, card_h)
         msg_y = cpu_card_rect.bottom + PANEL_PAD // 2
         msg_rect = pygame.Rect(inner_x, msg_y, inner_w, MSG_H)
-        player_card_rect = pygame.Rect(inner_x, msg_rect.bottom + PANEL_PAD // 2, inner_w, card_h)
+        player_card_rect = pygame.Rect(
+            inner_x, msg_rect.bottom + PANEL_PAD // 2, inner_w, card_h)
 
-        draw_info_card(surf, cpu_card_rect, self.font, self.cpu, False, (self.turn == CPU_TURN), self.phase, self.winner, self.cpu_weapon_buttons, self.ui_elements, self.cpu_weapon_detail_toggles, self.cpu_expanded_weapons)
-        
+        draw_info_card(
+            surf,
+            cpu_card_rect,
+            self.font,
+            self.cpu,
+            False,
+            (self.turn == CPU_TURN),
+            self.phase,
+            self.winner,
+            self.cpu_weapon_buttons,
+            self.ui_elements,
+            self.cpu_weapon_detail_toggles,
+            self.cpu_expanded_weapons,
+        )
+
         # Message strip
         pygame.draw.rect(surf, (20, 24, 38), msg_rect, border_radius=8)
         pygame.draw.rect(surf, PANEL_BORDER, msg_rect, 1, border_radius=8)
@@ -225,7 +271,20 @@ class BattleScreen(BaseScreen):
             surf.blit(line_surf, (msg_rect.x + 8, text_y))
             text_y += line_h
 
-        draw_info_card(surf, player_card_rect, self.font, self.player, True, (self.turn == PLAYER_TURN), self.phase, self.winner, self.weapon_buttons, self.ui_elements, self.weapon_detail_toggles, self.expanded_weapons)
+        draw_info_card(
+            surf,
+            player_card_rect,
+            self.font,
+            self.player,
+            True,
+            (self.turn == PLAYER_TURN),
+            self.phase,
+            self.winner,
+            self.weapon_buttons,
+            self.ui_elements,
+            self.weapon_detail_toggles,
+            self.expanded_weapons,
+        )
 
     def _draw_collapsed_bar(self, screen):
         bar_h = 40
@@ -233,7 +292,8 @@ class BattleScreen(BaseScreen):
         overlay.fill((10, 12, 22, 200))
         screen.blit(overlay, (0, HEIGHT - bar_h))
         msg_surf = self.small_font.render(self.message, True, WHITE)
-        screen.blit(msg_surf, msg_surf.get_rect(center=(WIDTH // 2, HEIGHT - bar_h // 2)))
+        screen.blit(msg_surf, msg_surf.get_rect(
+            center=(WIDTH // 2, HEIGHT - bar_h // 2)))
 
     def _draw_toggle_tab(self, surf, panel_x):
         if self.panel_expanded:

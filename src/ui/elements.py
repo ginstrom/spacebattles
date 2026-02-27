@@ -1,11 +1,21 @@
 """
-Reusable UI components for the game, including ship icons, 
+Reusable UI components for the game, including ship icons,
 info cards, and health bars.
 """
 import pygame
-from src.constants import PANEL_BORDER, WHITE, BLUE, PANEL_BG, GRAY, GREEN, PHASE_FIRE, PHASE_END
+from src.constants import (
+    PANEL_BG,
+    PANEL_BORDER,
+    BLUE,
+    GRAY,
+    GREEN,
+    PHASE_END,
+    PHASE_FIRE,
+    WHITE,
+)
 from src.utils.helpers import hp_color, wrap_text
 from src.models.ship import Ship
+
 
 def draw_enemy_icon(surf: pygame.Surface, cx: int, cy: int, size: int) -> None:
     half = size // 2
@@ -18,7 +28,11 @@ def draw_enemy_icon(surf: pygame.Surface, cx: int, cy: int, size: int) -> None:
     pygame.draw.polygon(surf, PANEL_BORDER, points, 2)
 
 
-def draw_player_icon(surf: pygame.Surface, cx: int, cy: int, size: int) -> None:
+def draw_player_icon(
+        surf: pygame.Surface,
+        cx: int,
+        cy: int,
+        size: int) -> None:
     half = size // 2
     pygame.draw.circle(surf, (180, 110, 70), (cx, cy), half)
     pygame.draw.circle(surf, PANEL_BORDER, (cx, cy), half, 2)
@@ -28,6 +42,7 @@ def draw_player_icon(surf: pygame.Surface, cx: int, cy: int, size: int) -> None:
     body_top = head_cy + head_r
     body_bot = cy + half // 3
     pygame.draw.line(surf, WHITE, (cx, body_top), (cx, body_bot), 2)
+
 
 def draw_info_card(
     surf: pygame.Surface,
@@ -59,8 +74,10 @@ def draw_info_card(
 
     bar_h = 10
     bar_w = content_w
-    pygame.draw.rect(surf, (50, 55, 75), (tx, ty, bar_w, bar_h), border_radius=5)
-    fill_w = int(bar_w * max(0, ship.hp) / ship.max_hp) if ship.max_hp > 0 else 0
+    pygame.draw.rect(surf, (50, 55, 75),
+                     (tx, ty, bar_w, bar_h), border_radius=5)
+    fill_w = int(bar_w * max(0, ship.hp) /
+                 ship.max_hp) if ship.max_hp > 0 else 0
     if fill_w > 0:
         pygame.draw.rect(
             surf, hp_color(ship.hp, ship.max_hp),
@@ -82,14 +99,21 @@ def draw_info_card(
     ui_elements_out.clear()
     btn_h = line_h + 8
     btn_gap = 6
-    
+
     for i, w in enumerate(ship.weapons):
         # Main weapon button
         # Only player can fire their own weapons
-        can_fire_now = is_player and active_turn and phase == PHASE_FIRE and w.can_fire() and winner is None
+        can_fire_now = (
+            is_player
+            and active_turn
+            and phase == PHASE_FIRE
+            and w.can_fire()
+            and winner is None
+        )
         color = BLUE if can_fire_now else (50, 55, 75)
-        text_color = WHITE if (can_fire_now or not is_player) else (160, 160, 160)
-        
+        text_color = WHITE if (
+            can_fire_now or not is_player) else (160, 160, 160)
+
         label = w.name
         if w.current_cooldown > 0:
             label += f" ({w.current_cooldown})"
@@ -100,25 +124,28 @@ def draw_info_card(
         # Reserve space for the ">>" affordance on the right
         affordance_w = 30
         btn_w = content_w - affordance_w - 4
-        
+
         btn_rect = pygame.Rect(tx, ty, btn_w, btn_h)
         pygame.draw.rect(surf, color, btn_rect, border_radius=8)
         pygame.draw.rect(surf, (30, 30, 45), btn_rect, 1, border_radius=8)
-        surf.blit(btn_surf, (tx + 12, ty + (btn_h - btn_surf.get_height()) // 2))
+        surf.blit(
+            btn_surf,
+            (tx + 12, ty + (btn_h - btn_surf.get_height()) // 2),
+        )
         weapon_buttons_out[i] = btn_rect
-        
+
         # Details affordance
         aff_rect = pygame.Rect(tx + btn_w + 4, ty, affordance_w, btn_h)
         pygame.draw.rect(surf, (40, 45, 60), aff_rect, border_radius=8)
         pygame.draw.rect(surf, PANEL_BORDER, aff_rect, 1, border_radius=8)
-        
+
         aff_text = "<<" if i in expanded_weapons else ">>"
         aff_surf = font.render(aff_text, True, WHITE)
         surf.blit(aff_surf, aff_surf.get_rect(center=aff_rect.center))
         weapon_detail_toggles_out[i] = aff_rect
-        
+
         ty += btn_h + btn_gap
-        
+
         # Expanded details
         if i in expanded_weapons:
             details = [
@@ -135,7 +162,7 @@ def draw_info_card(
     if is_player:
         ty += 8
         et_label = "End Turn"
-        et_enabled = active_turn and winner is None # Can always end turn
+        et_enabled = active_turn and winner is None  # Can always end turn
         et_color = GREEN if et_enabled else GRAY
         et_text_color = WHITE if et_enabled else (160, 160, 160)
 

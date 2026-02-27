@@ -1,0 +1,15 @@
+[project]
+name = "spacebattle"
+version = "0.1.0"
+description = "A turn-based space battle game"
+requires-python = ">=3.12"
+dependencies = [
+    "pygame>=2.6.1",
+    "pyyaml>=6.0.3",
+]
+
+[dependency-groups]
+dev = [
+    "coverage>=7.13.4",
+    "phmdoctest>=1.4.0",
+]
