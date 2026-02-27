@@ -150,7 +150,7 @@ class TestUI(unittest.TestCase):
     @patch('pygame.draw.rect')
     def test_draw_info_card_cpu(self, mock_rect):
         from src.ui.elements import draw_info_card
-        from src.constants import PHASE_FIRE
+        from src.constants import PHASE_FIRE, BLUE
 
         weapon_buttons = {}
         ui_elements = {}
@@ -164,7 +164,7 @@ class TestUI(unittest.TestCase):
             self.mock_font,
             self.cpu,
             False,
-            False,
+            True,
             PHASE_FIRE,
             None,
             weapon_buttons,
@@ -176,6 +176,15 @@ class TestUI(unittest.TestCase):
         self.assertEqual(len(detail_toggles), 1)
         self.assertEqual(len(ui_elements), 0)  # CPU has no "End Turn" button
         self.assertTrue(mock_rect.called)
+
+        # CPU active weapon should use the same active color affordance.
+        cpu_weapon_button = weapon_buttons[0]
+        self.assertTrue(
+            any(
+                call.args[1] == BLUE and call.args[2] == cpu_weapon_button
+                for call in mock_rect.call_args_list
+            )
+        )
 
     @patch('pygame.draw.rect')
     def test_draw_info_card_stacked(self, mock_rect):

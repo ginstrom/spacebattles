@@ -102,15 +102,18 @@ def draw_info_card(
 
     for i, w in enumerate(ship.weapons):
         # Main weapon button
-        # Only player can fire their own weapons
-        can_fire_now = (
-            is_player
-            and active_turn
+        # Player can fire; CPU uses the same active/inactive visual affordance.
+        is_weapon_active = (
+            active_turn
             and phase == PHASE_FIRE
             and w.can_fire()
             and winner is None
         )
-        color = BLUE if can_fire_now else (50, 55, 75)
+        can_fire_now = (
+            is_player
+            and is_weapon_active
+        )
+        color = BLUE if is_weapon_active else (50, 55, 75)
         text_color = WHITE if (
             can_fire_now or not is_player) else (160, 160, 160)
 
