@@ -8,12 +8,9 @@ from src.constants import (
     PANEL_BORDER,
     BLUE,
     GRAY,
-    GREEN,
-    PHASE_END,
-    PHASE_FIRE,
     WHITE,
 )
-from src.utils.helpers import hp_color, wrap_text
+from src.utils.helpers import hp_color
 from src.models.ship import Ship
 
 
@@ -50,15 +47,14 @@ def draw_info_card(
     font: pygame.font.Font,
     ship: Ship,
     is_player: bool,
-    active_turn: bool,
-    phase: str,
+    is_running: bool,
     winner: str | None,
     weapon_buttons_out: dict[int, pygame.Rect],
     ui_elements_out: dict[str, pygame.Rect],
     weapon_detail_toggles_out: dict[int, pygame.Rect],
     expanded_weapons: set[int],
 ) -> None:
-    border_color = BLUE if (active_turn and winner is None) else PANEL_BORDER
+    border_color = BLUE if (is_running and winner is None) else PANEL_BORDER
     pygame.draw.rect(surf, PANEL_BG, rect, border_radius=12)
     pygame.draw.rect(surf, border_color, rect, 2, border_radius=12)
 
@@ -104,8 +100,7 @@ def draw_info_card(
         # Main weapon button
         # Player can fire; CPU uses the same active/inactive visual affordance.
         is_weapon_active = (
-            active_turn
-            and phase == PHASE_FIRE
+            is_running
             and w.can_fire()
             and winner is None
         )
@@ -118,8 +113,8 @@ def draw_info_card(
             can_fire_now or not is_player) else (160, 160, 160)
 
         label = w.name
-        if w.current_cooldown > 0:
-            label += f" ({w.current_cooldown})"
+        if w.current_cooldown_seconds > 0:
+            label += f" ({w.current_cooldown_seconds:.1f}s)"
         elif w.charges is not None:
             label += f" ({w.charges})"
 
@@ -152,7 +147,7 @@ def draw_info_card(
         # Expanded details
         if i in expanded_weapons:
             details = [
-                f"Cooldown: {w.cooldown} (turns)",
+                f"Cooldown: {w.cooldown_seconds:.1f}s",
                 f"Damage: {w.damage_range[0]} - {w.damage_range[1]}",
                 f"Hit %: {w.hit_chance}%"
             ]
@@ -161,18 +156,3 @@ def draw_info_card(
                 surf.blit(d_surf, (tx + 16, ty))
                 ty += font.get_linesize()
             ty += 4
-
-    if is_player:
-        ty += 8
-        et_label = "End Turn"
-        et_enabled = active_turn and winner is None  # Can always end turn
-        et_color = GREEN if et_enabled else GRAY
-        et_text_color = WHITE if et_enabled else (160, 160, 160)
-
-        et_surf = font.render(et_label, True, et_text_color)
-        et_w = et_surf.get_width() + 32
-        et_rect = pygame.Rect(tx, ty, et_w, btn_h)
-        pygame.draw.rect(surf, et_color, et_rect, border_radius=8)
-        pygame.draw.rect(surf, (30, 30, 45), et_rect, 1, border_radius=8)
-        surf.blit(et_surf, (tx + 16, ty + (btn_h - et_surf.get_height()) // 2))
-        ui_elements_out["end_turn"] = et_rect

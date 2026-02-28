@@ -4,6 +4,7 @@ import pygame
 from src.ui.map import Map
 from src.models.ship import Ship
 from src.models.weapon import Weapon
+from src.constants import HEIGHT, SHIP_ICON_SIZE
 
 
 class TestUI(unittest.TestCase):
@@ -41,7 +42,7 @@ class TestUI(unittest.TestCase):
             mock_player_icon,
             mock_enemy_icon):
         self.map_obj.draw(
-            self.mock_surf, 800, self.player, self.cpu, "player", None,
+            self.mock_surf, 800, self.player, self.cpu, True, None,
             self.mock_font, self.mock_small_font
         )
 
@@ -52,7 +53,7 @@ class TestUI(unittest.TestCase):
             any(
                 isinstance(c, pygame.Rect)
                 and c.width == 800
-                and c.height == 700
+                and c.height == HEIGHT
                 for c in clip_args
                 if c is not None
             )
@@ -82,7 +83,7 @@ class TestUI(unittest.TestCase):
         mock_enemy_icon,
     ):
         self.map_obj.draw(
-            self.mock_surf, 800, self.player, self.cpu, "player", None,
+            self.mock_surf, 800, self.player, self.cpu, True, None,
             self.mock_font, self.mock_small_font
         )
 
@@ -94,8 +95,8 @@ class TestUI(unittest.TestCase):
         self.assertEqual(len(background_bar_rects), 2)
         player_bar_rect = max(background_bar_rects, key=lambda rect: rect[1])
 
-        player_cy = 700 * 3 // 4
-        icon_size = 64
+        player_cy = HEIGHT * 3 // 4
+        icon_size = SHIP_ICON_SIZE
         name_height = self.mock_small_font.render.return_value.get_height()
         name_bottom = player_cy - icon_size // 2 - 12
         name_top = name_bottom - name_height
@@ -121,7 +122,6 @@ class TestUI(unittest.TestCase):
     @patch('pygame.draw.rect')
     def test_draw_info_card_player(self, mock_rect):
         from src.ui.elements import draw_info_card
-        from src.constants import PHASE_FIRE
 
         weapon_buttons = {}
         ui_elements = {}
@@ -136,7 +136,6 @@ class TestUI(unittest.TestCase):
             self.player,
             True,
             True,
-            PHASE_FIRE,
             None,
             weapon_buttons,
             ui_elements,
@@ -144,13 +143,13 @@ class TestUI(unittest.TestCase):
             expanded)
 
         self.assertIn(0, weapon_buttons)
-        self.assertIn("end_turn", ui_elements)
+        self.assertEqual(len(ui_elements), 0)
         self.assertTrue(mock_rect.called)
 
     @patch('pygame.draw.rect')
     def test_draw_info_card_cpu(self, mock_rect):
         from src.ui.elements import draw_info_card
-        from src.constants import PHASE_FIRE, BLUE
+        from src.constants import BLUE
 
         weapon_buttons = {}
         ui_elements = {}
@@ -165,7 +164,6 @@ class TestUI(unittest.TestCase):
             self.cpu,
             False,
             True,
-            PHASE_FIRE,
             None,
             weapon_buttons,
             ui_elements,
@@ -189,7 +187,6 @@ class TestUI(unittest.TestCase):
     @patch('pygame.draw.rect')
     def test_draw_info_card_stacked(self, mock_rect):
         from src.ui.elements import draw_info_card
-        from src.constants import PHASE_FIRE
 
         weapon_buttons = {}
         ui_elements = {}
@@ -216,7 +213,6 @@ class TestUI(unittest.TestCase):
             ship,
             True,
             True,
-            PHASE_FIRE,
             None,
             weapon_buttons,
             ui_elements,
@@ -225,6 +221,34 @@ class TestUI(unittest.TestCase):
 
         self.assertIn(0, weapon_buttons)
         self.assertIn(1, weapon_buttons)
+
+    @patch('pygame.draw.rect')
+    def test_draw_info_card_shows_seconds_cooldown(self, mock_rect):
+        from src.ui.elements import draw_info_card
+
+        weapon_buttons = {}
+        ui_elements = {}
+        detail_toggles = {}
+        expanded = {0}
+        rect = pygame.Rect(10, 10, 200, 300)
+        self.player.weapons[0].current_cooldown_seconds = 3.4
+
+        draw_info_card(
+            self.mock_surf,
+            rect,
+            self.mock_font,
+            self.player,
+            True,
+            True,
+            None,
+            weapon_buttons,
+            ui_elements,
+            detail_toggles,
+            expanded)
+
+        render_texts = [call.args[0] for call in self.mock_font.render.call_args_list]
+        self.assertTrue(any("(3.4s)" in text for text in render_texts))
+        self.assertTrue(any("Cooldown: 5.0s" in text for text in render_texts))
 
 
 if __name__ == "__main__":

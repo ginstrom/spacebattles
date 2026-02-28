@@ -5,14 +5,12 @@ When you launch the game, you will see the enemy ship (top) and your ship
 
 ## Battle Sequence
 
-1. Your turn starts in the `fire` phase.
-2. Click any active weapon on your ship card to fire it.
-3. You may fire multiple weapons in the same turn (as long as each weapon can
-   fire).
-4. Click `End Turn` to hand control to the computer.
-5. The computer fires one available weapon, then its turn ends.
-6. Cooldowns tick down when each ship's turn finishes.
-7. The battle ends when either ship reaches `0 HP`.
+1. The game starts paused.
+2. Press `Space` to start or pause real-time combat.
+3. While running, click any ready weapon on your ship card to fire it.
+4. The computer fires automatically at intervals while the game is running.
+5. Weapon cooldowns are shown in seconds and tick down in real time.
+6. The battle ends when either ship reaches `0 HP`.
 
 ## Editing User-Facing Configs (`data/weapons.yaml`)
 
@@ -24,7 +22,7 @@ Each top-level key is a weapon name, and each weapon supports:
 
 - `damage_min` (int): minimum damage on a hit
 - `damage_max` (int): maximum damage on a hit
-- `cooldown` (int): turns before that weapon can fire again
+- `cooldown` (int): cooldown in turns from config (`1 turn = 5 seconds` in-game)
 - `hit_chance` (int): percent hit chance from `1` to `100`
 - `charges` (int or `null`): finite shots, or `null` for infinite
 

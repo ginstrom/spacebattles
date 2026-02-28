@@ -4,7 +4,7 @@ turn states, and UI layout parameters.
 """
 import pygame
 
-WIDTH, HEIGHT = 900, 700
+WIDTH, HEIGHT = 1440, 900
 FPS = 60
 
 BG = (15, 18, 26)
@@ -23,8 +23,12 @@ CPU_TURN = "cpu"
 PHASE_FIRE = "fire"
 PHASE_END = "end"
 
+COOLDOWN_SECONDS_PER_TURN = 5.0
+
 PANEL_W = 320
 TAB_W = 22
 TAB_H = 64
 PANEL_PAD = 14
 MSG_H = 68
+
+SHIP_ICON_SIZE = 48

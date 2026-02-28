@@ -1,5 +1,5 @@
 """
-The main battle screen implementation, managing turn-based combat
+The main battle screen implementation, managing real-time combat
 flow, player interaction, and CPU logic.
 """
 import pygame
@@ -25,9 +25,8 @@ class BattleScreen(BaseScreen):
         self.player, self.cpu = self._make_game()
         self.map = Map(make_stars())
 
-        self.turn = PLAYER_TURN
-        self.phase = PHASE_FIRE
-        self.message = "Your turn: choose a weapon."
+        self.is_paused = True
+        self.message = "Paused. Press Space to start."
         self.winner = None
 
         self.cpu_fire_at_ms = None
@@ -45,6 +44,9 @@ class BattleScreen(BaseScreen):
         self.attack_animation = None
         self.toggle_tab_rect = pygame.Rect(
             WIDTH - TAB_W, HEIGHT // 2 - TAB_H // 2, TAB_W, TAB_H)
+
+    def _current_map_width(self):
+        return WIDTH - PANEL_W if self.panel_expanded else WIDTH
 
     def _make_game(self):
         # Create unique instances for each ship
@@ -86,9 +88,8 @@ class BattleScreen(BaseScreen):
         if self.winner is not None:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
                 self.player, self.cpu = self._make_game()
-                self.turn = PLAYER_TURN
-                self.phase = PHASE_FIRE
-                self.message = "Your turn: choose a weapon."
+                self.is_paused = True
+                self.message = "Paused. Press Space to start."
                 self.winner = None
                 self.cpu_fire_at_ms = None
                 self.attack_animation = None
@@ -101,6 +102,16 @@ class BattleScreen(BaseScreen):
                 self.ui_elements.clear()
             return
 
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            self.is_paused = not self.is_paused
+            if self.is_paused:
+                self.message = "Paused. Press Space to resume."
+                self.cpu_fire_at_ms = None
+            else:
+                self.message = "Battle running. Press Space to pause."
+                self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
+            return
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = event.pos
             if self.toggle_tab_rect.collidepoint(pos):
@@ -110,8 +121,7 @@ class BattleScreen(BaseScreen):
                 self.cpu_weapon_buttons.clear()
                 self.cpu_weapon_detail_toggles.clear()
                 self.ui_elements.clear()
-            elif self.turn == PLAYER_TURN or self.turn == CPU_TURN:
-                # Allow expanding weapons regardless of whose turn it is
+            else:
                 # Check player weapon detail toggles
                 for idx, toggle_rect in self.weapon_detail_toggles.items():
                     if toggle_rect.collidepoint(pos):
@@ -130,26 +140,26 @@ class BattleScreen(BaseScreen):
                             self.cpu_expanded_weapons.add(idx)
                         return
 
-                if self.turn == PLAYER_TURN and self.phase == PHASE_FIRE:
+                if not self.is_paused:
                     for idx, btn_rect in self.weapon_buttons.items():
                         if btn_rect.collidepoint(pos):
                             weapon = self.player.weapons[idx]
                             hit, dmg = CombatSystem.execute_attack(
                                 self.player, weapon, self.cpu)
-                            self._start_attack_animation(True, weapon.name, now)
+                            self._start_attack_animation(
+                                True, weapon.name, hit, now
+                            )
                             if hit:
                                 self.message = (
                                     f"You fired {weapon.name} "
                                     f"for {dmg} damage. "
-                                    "You can fire more weapons. "
-                                    "Click 'End Turn'."
+                                    "Keep firing while weapons are ready."
                                 )
                             else:
                                 self.message = (
                                     f"You fired {weapon.name} "
                                     "and MISSED. "
-                                    "You can fire more weapons. "
-                                    "Click 'End Turn'."
+                                    "Keep firing while weapons are ready."
                                 )
 
                             if self.cpu.is_dead():
@@ -157,71 +167,56 @@ class BattleScreen(BaseScreen):
                                 self.message = "You win! Press R to restart."
                             break
 
-                et_rect = self.ui_elements.get("end_turn")
-                if et_rect and et_rect.collidepoint(pos):
-                    self.turn = CPU_TURN
-                    self.phase = PHASE_FIRE
-                    self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
-                    self.message = "Computer is thinking..."
-                    # Tick player weapons at end of turn
-                    for w in self.player.weapons:
-                        w.tick()
-
     def update(self, dt):
         now = pygame.time.get_ticks()
-        if self.winner is None and self.turn == CPU_TURN:
-            if self.phase == PHASE_FIRE:
-                if (
-                    self.cpu_fire_at_ms is not None
-                    and now >= self.cpu_fire_at_ms
-                ):
-                    available = [w for w in self.cpu.weapons if w.can_fire()]
-                    if not available:
-                        self.message = "Computer has no weapons left."
-                        self.phase = PHASE_END
-                        self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
-                    else:
-                        weapon = random.choice(available)
-                        hit, dmg = CombatSystem.execute_attack(
-                            self.cpu, weapon, self.player)
-                        self._start_attack_animation(False, weapon.name, now)
-                        if hit:
-                            self.message = (
-                                f"Computer fired {weapon.name} "
-                                f"for {dmg} damage."
-                            )
-                        else:
-                            self.message = (
-                                f"Computer fired {weapon.name} and MISSED."
-                            )
+        if self.winner is not None or self.is_paused:
+            return
 
-                        if self.player.is_dead():
-                            self.winner = "Computer"
-                            self.message = "You lose. Press R to restart."
-                        else:
-                            self.phase = PHASE_END
-                            self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
-            elif self.phase == PHASE_END:
-                if (
-                    self.cpu_fire_at_ms is not None
-                    and now >= self.cpu_fire_at_ms
-                ):
-                    self.turn = PLAYER_TURN
-                    self.phase = PHASE_FIRE
-                    self.message = "Your turn: choose a weapon."
-                    self.cpu_fire_at_ms = None
-                    # Tick CPU weapons at start of player turn (which is end of
-                    # CPU turn)
-                    for w in self.cpu.weapons:
-                        w.tick()
+        dt_seconds = dt / 1000.0
+        for w in self.player.weapons:
+            w.tick_seconds(dt_seconds)
+        for w in self.cpu.weapons:
+            w.tick_seconds(dt_seconds)
+
+        if self.cpu_fire_at_ms is not None and now >= self.cpu_fire_at_ms:
+            available = [w for w in self.cpu.weapons if w.can_fire()]
+            if available:
+                weapon = random.choice(available)
+                hit, dmg = CombatSystem.execute_attack(
+                    self.cpu, weapon, self.player)
+                self._start_attack_animation(
+                    False, weapon.name, hit, now
+                )
+                if hit:
+                    self.message = (
+                        f"Computer fired {weapon.name} "
+                        f"for {dmg} damage."
+                    )
+                else:
+                    self.message = (
+                        f"Computer fired {weapon.name} and MISSED."
+                    )
+
+                if self.player.is_dead():
+                    self.winner = "Computer"
+                    self.message = "You lose. Press R to restart."
+            self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
 
     def draw(self, screen):
         screen.fill(BG)
         panel_x = WIDTH - PANEL_W if self.panel_expanded else WIDTH
         map_w = WIDTH - PANEL_W if self.panel_expanded else WIDTH
 
-        self.map.draw(screen, map_w, self.player, self.cpu,
-                      self.turn, self.winner, self.font, self.small_font)
+        self.map.draw(
+            screen,
+            map_w,
+            self.player,
+            self.cpu,
+            (not self.is_paused),
+            self.winner,
+            self.font,
+            self.small_font,
+        )
         self._draw_attack_animation(screen, map_w)
 
         if self.panel_expanded:
@@ -234,23 +229,54 @@ class BattleScreen(BaseScreen):
         if self.winner is not None:
             self._draw_winner_overlay(screen)
 
-    def _start_attack_animation(self, player_fired, weapon_name, now_ms):
+    def _start_attack_animation(self, player_fired, weapon_name, hit, now_ms):
         color = RED if weapon_name == "Laser" else YELLOW
+        map_w = self._current_map_width()
+        center_x = map_w // 2
         start = (
-            WIDTH // 2,
+            center_x,
             HEIGHT * 3 // 4 if player_fired else HEIGHT // 4,
         )
-        end = (
-            WIDTH // 2,
+        target = (
+            center_x,
             HEIGHT // 4 if player_fired else HEIGHT * 3 // 4,
         )
         self.attack_animation = {
             "color": color,
             "start": start,
-            "end": end,
+            "target": target,
+            "missed": not hit,
             "started_at_ms": now_ms,
             "duration_ms": self.ATTACK_ANIM_MS,
         }
+
+    def _beam_end_for_draw(self, start, target, missed, map_w):
+        if not missed:
+            return target
+
+        sx, sy = start
+        tx, ty = target
+        dx = tx - sx
+        dy = ty - sy
+
+        candidates = []
+        if dx != 0:
+            for bx in (0, map_w):
+                t = (bx - sx) / dx
+                y = sy + t * dy
+                if t > 1.0 and 0 <= y <= HEIGHT:
+                    candidates.append((t, (int(round(bx)), int(round(y)))))
+        if dy != 0:
+            for by in (0, HEIGHT):
+                t = (by - sy) / dy
+                x = sx + t * dx
+                if t > 1.0 and 0 <= x <= map_w:
+                    candidates.append((t, (int(round(x)), int(round(by)))))
+
+        if not candidates:
+            return target
+        candidates.sort(key=lambda item: item[0])
+        return candidates[0][1]
 
     def _draw_attack_animation(self, screen, map_w):
         if self.attack_animation is None:
@@ -272,7 +298,12 @@ class BattleScreen(BaseScreen):
             screen,
             self.attack_animation["color"],
             self.attack_animation["start"],
-            self.attack_animation["end"],
+            self._beam_end_for_draw(
+                self.attack_animation["start"],
+                self.attack_animation["target"],
+                self.attack_animation["missed"],
+                map_w,
+            ),
             beam_w,
         )
         screen.set_clip(old_clip)
@@ -300,8 +331,7 @@ class BattleScreen(BaseScreen):
             self.font,
             self.cpu,
             False,
-            (self.turn == CPU_TURN),
-            self.phase,
+            (not self.is_paused),
             self.winner,
             self.cpu_weapon_buttons,
             self.ui_elements,
@@ -326,8 +356,7 @@ class BattleScreen(BaseScreen):
             self.font,
             self.player,
             True,
-            (self.turn == PLAYER_TURN),
-            self.phase,
+            (not self.is_paused),
             self.winner,
             self.weapon_buttons,
             self.ui_elements,

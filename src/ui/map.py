@@ -5,10 +5,9 @@ and the visual positioning of ships.
 import pygame
 from src.constants import (
     BLUE,
-    CPU_TURN,
     HEIGHT,
     PANEL_BORDER,
-    PLAYER_TURN,
+    SHIP_ICON_SIZE,
     WHITE,
 )
 from src.utils.helpers import hp_color
@@ -26,7 +25,7 @@ class Map:
         map_w: int,
         player: Ship,
         cpu: Ship,
-        turn: str,
+        is_running: bool,
         winner: str | None,
         font: pygame.font.Font,
         small_font: pygame.font.Font,
@@ -48,8 +47,8 @@ class Map:
         # CPU
         cpu_cx = map_w // 2
         cpu_cy = HEIGHT // 4
-        icon_size = 64
-        if turn == CPU_TURN and winner is None:
+        icon_size = SHIP_ICON_SIZE
+        if is_running and winner is None:
             pygame.draw.circle(surf, BLUE, (cpu_cx, cpu_cy),
                                icon_size // 2 + 10, 2)
         draw_enemy_icon(surf, cpu_cx, cpu_cy, icon_size)
@@ -71,7 +70,7 @@ class Map:
         # Player
         player_cx = map_w // 2
         player_cy = HEIGHT * 3 // 4
-        if turn == PLAYER_TURN and winner is None:
+        if is_running and winner is None:
             pygame.draw.circle(
                 surf, BLUE, (player_cx, player_cy), icon_size // 2 + 10, 2)
         draw_player_icon(surf, player_cx, player_cy, icon_size)

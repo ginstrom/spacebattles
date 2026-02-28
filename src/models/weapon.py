@@ -6,6 +6,7 @@ import random
 import yaml
 from dataclasses import dataclass
 from pathlib import Path
+from src.constants import COOLDOWN_SECONDS_PER_TURN
 
 
 @dataclass
@@ -14,7 +15,7 @@ class Weapon:
     damage_range: tuple[int, int]
     cooldown: int
     hit_chance: int
-    current_cooldown: int = 0
+    current_cooldown_seconds: float = 0.0
     charges: int | None = None  # None = infinite, else consumes
 
     @staticmethod
@@ -34,8 +35,12 @@ class Weapon:
         return weapons
 
     def can_fire(self) -> bool:
-        return self.current_cooldown == 0 and (
+        return self.current_cooldown_seconds <= 0.0 and (
             self.charges is None or self.charges > 0)
+
+    @property
+    def cooldown_seconds(self) -> float:
+        return self.cooldown * COOLDOWN_SECONDS_PER_TURN
 
     def fire(self) -> tuple[bool, int]:
         """
@@ -44,7 +49,7 @@ class Weapon:
         if not self.can_fire():
             return False, 0
 
-        self.current_cooldown = self.cooldown
+        self.current_cooldown_seconds = self.cooldown_seconds
 
         if self.charges is not None:
             self.charges -= 1
@@ -54,6 +59,8 @@ class Weapon:
 
         return True, random.randint(*self.damage_range)
 
-    def tick(self) -> None:
-        if self.current_cooldown > 0:
-            self.current_cooldown -= 1
+    def tick_seconds(self, dt_seconds: float) -> None:
+        if self.current_cooldown_seconds > 0:
+            self.current_cooldown_seconds = max(
+                0.0, self.current_cooldown_seconds - dt_seconds
+            )

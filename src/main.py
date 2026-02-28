@@ -1,5 +1,5 @@
 """
-The entry point for the Turn-Based Ship Duel application.
+The entry point for the real-time Ship Duel application.
 Initializes the game engine and the ScreenManager.
 """
 import pygame
@@ -11,7 +11,7 @@ from src.screens.battle_screen import BattleScreen
 def main() -> None:
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption("Turn-Based Ship Duel")
+    pygame.display.set_caption("Ship Duel")
     clock = pygame.time.Clock()
 
     manager = ScreenManager(screen)

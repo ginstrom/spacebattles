@@ -13,11 +13,11 @@ class TestCombat(unittest.TestCase):
         self.assertGreaterEqual(dmg, 10)
         self.assertLessEqual(dmg, 20)
         self.assertEqual(w.charges, 1)
-        self.assertEqual(w.current_cooldown, 2)
+        self.assertEqual(w.current_cooldown_seconds, 10.0)
         self.assertFalse(w.can_fire())
 
-        w.tick()
-        w.tick()
+        w.tick_seconds(5.0)
+        w.tick_seconds(5.0)
         self.assertTrue(w.can_fire())
         w.fire()
         self.assertEqual(w.charges, 0)
@@ -47,7 +47,7 @@ class TestCombat(unittest.TestCase):
 
     def test_combat_system_on_cooldown(self):
         w = Weapon("Laser", (10, 10), cooldown=1, hit_chance=100, charges=1)
-        w.current_cooldown = 1
+        w.current_cooldown_seconds = 1.0
         attacker = Ship("Attacker", 100, 100, [w])
         defender = Ship("Defender", 100, 100, [])
         success, dmg = CombatSystem.execute_attack(attacker, w, defender)
