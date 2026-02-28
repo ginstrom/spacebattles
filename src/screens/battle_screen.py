@@ -42,11 +42,21 @@ class BattleScreen(BaseScreen):
         self.ui_elements = {}
         self.panel_expanded = True
         self.attack_animation = None
+        self.space_pressed = False
         self.toggle_tab_rect = pygame.Rect(
             WIDTH - TAB_W, HEIGHT // 2 - TAB_H // 2, TAB_W, TAB_H)
 
     def _current_map_width(self):
         return WIDTH - PANEL_W if self.panel_expanded else WIDTH
+
+    def _toggle_pause(self, now):
+        self.is_paused = not self.is_paused
+        if self.is_paused:
+            self.message = "Paused. Press Space to resume."
+            self.cpu_fire_at_ms = None
+        else:
+            self.message = "Battle running. Press Space to pause."
+            self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
 
     def _make_game(self):
         # Create unique instances for each ship
@@ -100,16 +110,17 @@ class BattleScreen(BaseScreen):
                 self.cpu_weapon_detail_toggles.clear()
                 self.cpu_expanded_weapons.clear()
                 self.ui_elements.clear()
+                self.space_pressed = False
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            self.is_paused = not self.is_paused
-            if self.is_paused:
-                self.message = "Paused. Press Space to resume."
-                self.cpu_fire_at_ms = None
-            else:
-                self.message = "Battle running. Press Space to pause."
-                self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
+            if not self.space_pressed:
+                self._toggle_pause(now)
+                self.space_pressed = True
+            return
+
+        if event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
+            self.space_pressed = False
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:

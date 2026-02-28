@@ -50,6 +50,14 @@ class TestScreens(unittest.TestCase):
         self.assertFalse(self.screen.is_paused)
         self.assertEqual(self.screen.cpu_fire_at_ms, 1000 + self.screen.CPU_DELAY_MS)
 
+        # Key repeat should not immediately toggle back without release.
+        self.screen.handle_event(event)
+        self.assertFalse(self.screen.is_paused)
+
+        keyup = MagicMock()
+        keyup.type = pygame.KEYUP
+        keyup.key = pygame.K_SPACE
+        self.screen.handle_event(keyup)
         self.screen.handle_event(event)
         self.assertTrue(self.screen.is_paused)
         self.assertIsNone(self.screen.cpu_fire_at_ms)
