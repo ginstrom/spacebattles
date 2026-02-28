@@ -165,8 +165,9 @@ class TestScreens(unittest.TestCase):
         self.screen.handle_event(event)
         self.assertFalse(self.screen.is_paused)
 
-        # Second press WITHOUT a KEYUP in between (KEYUP was lost).
-        # The guard leaves space_pressed=True, so this currently fails to toggle.
+        # Second press WITHOUT a KEYUP in between (simulates SDL2/focus quirk
+        # where KEYUP is lost). With the edge-trigger guard removed, the toggle
+        # still fires correctly.
         self.screen.handle_event(event)
         self.assertTrue(self.screen.is_paused)
 
