@@ -6,8 +6,6 @@ import logging
 import pygame
 import random
 from src.core.base_screen import BaseScreen
-
-_log = logging.getLogger(__name__)
 from src.constants import *
 from src.models.ship import Ship
 from src.models.weapon import Weapon
@@ -15,6 +13,8 @@ from src.utils.helpers import make_stars, wrap_text
 from src.ui.map import Map
 from src.ui.elements import draw_info_card
 from src.systems.combat import CombatSystem
+
+_log = logging.getLogger(__name__)
 
 
 class BattleScreen(BaseScreen):

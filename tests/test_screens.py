@@ -216,6 +216,7 @@ class TestScreens(unittest.TestCase):
             second_args = mock_log.info.call_args_list[1].args
             self.assertIn("unpaused", first_args)
             self.assertIn("paused", second_args)
+            self.assertAlmostEqual(first_args[1], 12.345)
 
 
 if __name__ == "__main__":
