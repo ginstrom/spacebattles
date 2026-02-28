@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 from src.utils.helpers import hp_color, make_stars, wrap_text
-from src.constants import GREEN, YELLOW, RED
+from src.constants import GREEN, YELLOW, RED, WIDTH, HEIGHT
 
 
 class TestUtils(unittest.TestCase):
@@ -24,8 +24,8 @@ class TestUtils(unittest.TestCase):
         stars = make_stars(10)
         self.assertEqual(len(stars), 10)
         for x, y, b, s in stars:
-            self.assertTrue(0 <= x <= 1280)  # WIDTH
-            self.assertTrue(0 <= y <= 720)   # HEIGHT
+            self.assertTrue(0 <= x <= WIDTH)
+            self.assertTrue(0 <= y <= HEIGHT)
             self.assertTrue(120 <= b <= 255)  # Brightness
             self.assertTrue(1 <= s <= 3)     # Size
 
