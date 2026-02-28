@@ -198,6 +198,25 @@ class TestScreens(unittest.TestCase):
         self.screen.update(500)
         self.assertEqual(self.screen.game_time_ms, 0)
 
+    @patch("pygame.time.get_ticks")
+    def test_toggle_pause_logs_state(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.game_time_ms = 12345
+
+        with patch("src.screens.battle_screen._log") as mock_log:
+            event = MagicMock()
+            event.type = pygame.KEYDOWN
+            event.key = pygame.K_SPACE
+
+            self.screen.handle_event(event)   # unpause
+            self.screen.handle_event(event)   # pause
+
+            self.assertEqual(mock_log.info.call_count, 2)
+            first_args = mock_log.info.call_args_list[0].args
+            second_args = mock_log.info.call_args_list[1].args
+            self.assertIn("unpaused", first_args)
+            self.assertIn("paused", second_args)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,9 +2,12 @@
 The main battle screen implementation, managing real-time combat
 flow, player interaction, and CPU logic.
 """
+import logging
 import pygame
 import random
 from src.core.base_screen import BaseScreen
+
+_log = logging.getLogger(__name__)
 from src.constants import *
 from src.models.ship import Ship
 from src.models.weapon import Weapon
@@ -57,6 +60,7 @@ class BattleScreen(BaseScreen):
         else:
             self.message = "Battle running. Press Space to pause."
             self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
+        _log.info("T+%.3fs %s", self.game_time_ms / 1000, "paused" if self.is_paused else "unpaused")
 
     def _make_game(self):
         # Create unique instances for each ship
