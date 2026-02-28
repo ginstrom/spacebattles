@@ -45,7 +45,7 @@ class BattleScreen(BaseScreen):
         self.ui_elements = {}
         self.panel_expanded = True
         self.attack_animation = None
-        self.game_time_ms = 0
+        self.game_time_ms: int = 0
         self.toggle_tab_rect = pygame.Rect(
             WIDTH - TAB_W, HEIGHT // 2 - TAB_H // 2, TAB_W, TAB_H)
 
