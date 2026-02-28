@@ -42,7 +42,7 @@ class BattleScreen(BaseScreen):
         self.ui_elements = {}
         self.panel_expanded = True
         self.attack_animation = None
-        self.space_pressed = False
+        self.game_time_ms = 0
         self.toggle_tab_rect = pygame.Rect(
             WIDTH - TAB_W, HEIGHT // 2 - TAB_H // 2, TAB_W, TAB_H)
 
@@ -103,6 +103,7 @@ class BattleScreen(BaseScreen):
                 self.winner = None
                 self.cpu_fire_at_ms = None
                 self.attack_animation = None
+                self.game_time_ms = 0
                 self.weapon_buttons.clear()
                 self.weapon_detail_toggles.clear()
                 self.expanded_weapons.clear()
@@ -110,17 +111,10 @@ class BattleScreen(BaseScreen):
                 self.cpu_weapon_detail_toggles.clear()
                 self.cpu_expanded_weapons.clear()
                 self.ui_elements.clear()
-                self.space_pressed = False
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            if not self.space_pressed:
-                self._toggle_pause(now)
-                self.space_pressed = True
-            return
-
-        if event.type == pygame.KEYUP and event.key == pygame.K_SPACE:
-            self.space_pressed = False
+            self._toggle_pause(now)
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -183,6 +177,7 @@ class BattleScreen(BaseScreen):
         if self.winner is not None or self.is_paused:
             return
 
+        self.game_time_ms += dt
         dt_seconds = dt / 1000.0
         for w in self.player.weapons:
             w.tick_seconds(dt_seconds)

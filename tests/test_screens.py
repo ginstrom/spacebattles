@@ -50,14 +50,7 @@ class TestScreens(unittest.TestCase):
         self.assertFalse(self.screen.is_paused)
         self.assertEqual(self.screen.cpu_fire_at_ms, 1000 + self.screen.CPU_DELAY_MS)
 
-        # Key repeat should not immediately toggle back without release.
-        self.screen.handle_event(event)
-        self.assertFalse(self.screen.is_paused)
-
-        keyup = MagicMock()
-        keyup.type = pygame.KEYUP
-        keyup.key = pygame.K_SPACE
-        self.screen.handle_event(keyup)
+        # Second press toggles back to paused.
         self.screen.handle_event(event)
         self.assertTrue(self.screen.is_paused)
         self.assertIsNone(self.screen.cpu_fire_at_ms)
@@ -161,6 +154,23 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(red_beam_calls[-1].args[3], (450, 0))
 
     @patch("pygame.time.get_ticks")
+    def test_space_works_when_keyup_lost(self, mock_get_ticks):
+        """Space must toggle even if the preceding KEYUP was lost (SDL2/focus quirk)."""
+        mock_get_ticks.return_value = 1000
+        event = MagicMock()
+        event.type = pygame.KEYDOWN
+        event.key = pygame.K_SPACE
+
+        # First press: unpause
+        self.screen.handle_event(event)
+        self.assertFalse(self.screen.is_paused)
+
+        # Second press WITHOUT a KEYUP in between (KEYUP was lost).
+        # The guard leaves space_pressed=True, so this currently fails to toggle.
+        self.screen.handle_event(event)
+        self.assertTrue(self.screen.is_paused)
+
+    @patch("pygame.time.get_ticks")
     def test_restart(self, mock_get_ticks):
         self.screen.winner = "Computer"
         event = MagicMock()
@@ -169,6 +179,23 @@ class TestScreens(unittest.TestCase):
         self.screen.handle_event(event)
         self.assertIsNone(self.screen.winner)
         self.assertTrue(self.screen.is_paused)
+
+    @patch("pygame.time.get_ticks")
+    def test_game_time_accumulates_when_running(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.game_time_ms = 0
+        self.screen.update(500)
+        self.screen.update(500)
+        self.assertEqual(self.screen.game_time_ms, 1000)
+
+    @patch("pygame.time.get_ticks")
+    def test_game_time_frozen_when_paused(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = True
+        self.screen.game_time_ms = 0
+        self.screen.update(500)
+        self.assertEqual(self.screen.game_time_ms, 0)
 
 
 if __name__ == "__main__":
