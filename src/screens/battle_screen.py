@@ -62,6 +62,15 @@ class BattleScreen(BaseScreen):
             self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
         _log.info("T+%.3fs %s", self.game_time_ms / 1000, "paused" if self.is_paused else "unpaused")
 
+    @staticmethod
+    def _is_repeat_keydown(event) -> bool:
+        repeat = getattr(event, "repeat", 0)
+        if isinstance(repeat, bool):
+            return repeat
+        if isinstance(repeat, int):
+            return repeat != 0
+        return False
+
     def _make_game(self):
         # Create unique instances for each ship
         # To match the "From: [laser x 2] [ion beam x 1]" example:
@@ -118,6 +127,8 @@ class BattleScreen(BaseScreen):
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            if self._is_repeat_keydown(event):
+                return
             self._toggle_pause(now)
             return
 

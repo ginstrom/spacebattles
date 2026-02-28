@@ -218,6 +218,27 @@ class TestScreens(unittest.TestCase):
             self.assertIn("paused", second_args)
             self.assertAlmostEqual(first_args[1], 12.345)
 
+    @patch("pygame.time.get_ticks")
+    def test_space_ignores_key_repeat(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+
+        first_event = MagicMock()
+        first_event.type = pygame.KEYDOWN
+        first_event.key = pygame.K_SPACE
+        first_event.repeat = 0
+
+        repeat_event = MagicMock()
+        repeat_event.type = pygame.KEYDOWN
+        repeat_event.key = pygame.K_SPACE
+        repeat_event.repeat = 1
+
+        self.screen.handle_event(first_event)
+        self.assertFalse(self.screen.is_paused)
+
+        # Repeated KEYDOWN while key is held should not toggle pause again.
+        self.screen.handle_event(repeat_event)
+        self.assertFalse(self.screen.is_paused)
+
 
 if __name__ == "__main__":
     unittest.main()
