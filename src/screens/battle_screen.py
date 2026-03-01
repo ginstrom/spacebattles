@@ -51,9 +51,14 @@ class BattleScreen(BaseScreen):
             WIDTH - TAB_W, HEIGHT // 2 - TAB_H // 2, TAB_W, TAB_H)
         self.turn_left_held = False
         self.turn_right_held = False
+        self.waypoints: list[tuple[float, float]] = []
 
     def _current_map_width(self):
         return WIDTH - PANEL_W if self.panel_expanded else WIDTH
+
+    def _is_map_point(self, pos):
+        x, y = pos
+        return 0 <= x <= self._current_map_width() and 0 <= y <= HEIGHT
 
     def _toggle_pause(self, now):
         self.is_paused = not self.is_paused
@@ -136,6 +141,7 @@ class BattleScreen(BaseScreen):
                 self.ui_elements.clear()
                 self.turn_left_held = False
                 self.turn_right_held = False
+                self.waypoints.clear()
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -155,6 +161,15 @@ class BattleScreen(BaseScreen):
             return
         if event.type == pygame.KEYUP and event.key == pygame.K_d:
             self.turn_right_held = False
+            return
+
+        if (
+            event.type == pygame.MOUSEBUTTONDOWN
+            and self.is_paused
+            and event.button in (1, 3)
+            and self._is_map_point(event.pos)
+        ):
+            self.waypoints.append((float(event.pos[0]), float(event.pos[1])))
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -224,10 +239,29 @@ class BattleScreen(BaseScreen):
         for w in self.cpu.weapons:
             w.tick_seconds(dt_seconds)
 
+        manual_override = self.turn_left_held or self.turn_right_held
+        if manual_override and self.waypoints:
+            self.waypoints.clear()
+
         if self.turn_left_held:
             self.player.heading -= self.player.rotation_speed_deg_s * dt_seconds
-        if self.turn_right_held:
+        elif self.turn_right_held:
             self.player.heading += self.player.rotation_speed_deg_s * dt_seconds
+        elif self.waypoints:
+            waypoint = self.waypoints[0]
+            wp_dx = waypoint[0] - self.player.x
+            wp_dy = waypoint[1] - self.player.y
+            if math.hypot(wp_dx, wp_dy) <= 12.0:
+                self.waypoints.pop(0)
+            else:
+                target_heading = math.degrees(math.atan2(wp_dx, -wp_dy)) % 360.0
+                delta = (target_heading - self.player.heading + 540.0) % 360.0 - 180.0
+                max_turn = self.player.rotation_speed_deg_s * dt_seconds
+                if delta > max_turn:
+                    delta = max_turn
+                elif delta < -max_turn:
+                    delta = -max_turn
+                self.player.heading = (self.player.heading + delta) % 360.0
         self.player.heading %= 360.0
 
         heading_rad = math.radians(self.player.heading)

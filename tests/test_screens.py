@@ -328,6 +328,46 @@ class TestScreens(unittest.TestCase):
         self.screen.update(1000)
         self.assertEqual(self.screen.cpu.y, start_y + self.screen.cpu.speed_px_s)
 
+    @patch("pygame.time.get_ticks")
+    def test_paused_map_click_adds_waypoint(self, mock_get_ticks):
+        event = MagicMock()
+        event.type = pygame.MOUSEBUTTONDOWN
+        event.button = 3
+        event.pos = (100, 100)
+        self.screen.handle_event(event)
+        self.assertEqual(self.screen.waypoints, [(100.0, 100.0)])
+
+    @patch("pygame.time.get_ticks")
+    def test_waypoint_autopilot_turns_toward_next_point(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.player.speed_px_s = 0.0
+        self.screen.player.heading = 0.0
+        self.screen.waypoints = [(self.screen.player.x + 100.0, self.screen.player.y)]
+
+        self.screen.update(1000)
+        self.assertEqual(self.screen.player.heading, 90.0)
+
+    @patch("pygame.time.get_ticks")
+    def test_waypoint_removed_when_reached(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.player.speed_px_s = 0.0
+        self.screen.waypoints = [(self.screen.player.x + 1.0, self.screen.player.y + 1.0)]
+
+        self.screen.update(16)
+        self.assertEqual(self.screen.waypoints, [])
+
+    @patch("pygame.time.get_ticks")
+    def test_manual_steering_clears_waypoints(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.waypoints = [(100.0, 100.0)]
+        self.screen.turn_left_held = True
+
+        self.screen.update(16)
+        self.assertEqual(self.screen.waypoints, [])
+
 
 if __name__ == "__main__":
     unittest.main()
