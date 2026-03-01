@@ -95,6 +95,7 @@ def draw_info_card(
     ui_elements_out: dict[str, pygame.Rect],
     weapon_detail_toggles_out: dict[int, pygame.Rect],
     expanded_weapons: set[int],
+    queued_weapon_indices: set[int] | None = None,
 ) -> None:
     border_color = BLUE if (is_running and winner is None) else PANEL_BORDER
     pygame.draw.rect(surf, PANEL_BG, rect, border_radius=12)
@@ -141,6 +142,12 @@ def draw_info_card(
     for i, w in enumerate(ship.weapons):
         # Main weapon button
         # Player can fire; CPU uses the same active/inactive visual affordance.
+        is_queued = (
+            is_player
+            and queued_weapon_indices is not None
+            and i in queued_weapon_indices
+            and winner is None
+        )
         is_weapon_active = (
             is_running
             and w.can_fire()
@@ -151,10 +158,14 @@ def draw_info_card(
             and is_weapon_active
         )
         color = BLUE if is_weapon_active else (50, 55, 75)
+        if is_queued:
+            color = (210, 140, 55)
         text_color = WHITE if (
             can_fire_now or not is_player) else (160, 160, 160)
+        if is_queued:
+            text_color = WHITE
 
-        label = w.name
+        label = f"[Q] {w.name}" if is_queued else w.name
         if w.current_cooldown_seconds > 0:
             label += f" ({w.current_cooldown_seconds:.1f}s)"
         elif w.charges is not None:

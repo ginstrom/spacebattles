@@ -40,6 +40,8 @@ class BattleScreen(BaseScreen):
         self.ATTACK_ANIM_MS = 240
         self.CPU_TRAIL_DISTANCE_PX = SHIP_ICON_SIZE * 2.0
         self.MIN_SHIP_SEPARATION_PX = SHIP_ICON_SIZE * 1.2
+        self.CPU_HEADING_FOLLOW_MIN_MS = 1000
+        self.CPU_HEADING_FOLLOW_MAX_MS = 3000
 
         self.weapon_buttons = {}
         self.weapon_detail_toggles = {}
@@ -56,6 +58,10 @@ class BattleScreen(BaseScreen):
         self.turn_left_held = False
         self.turn_right_held = False
         self.waypoints: list[tuple[float, float]] = []
+        self.queued_player_attacks: list[int] = []
+        self.cpu_follow_heading_deg = self.player.heading
+        self.cpu_pending_follow_heading_deg: float | None = None
+        self.cpu_follow_heading_apply_at_ms = 0
 
     def _current_map_width(self):
         return WIDTH - PANEL_W if self.panel_expanded else WIDTH
@@ -92,6 +98,55 @@ class BattleScreen(BaseScreen):
         self.player.y = max(0.0, min(float(HEIGHT), self.player.y))
         self.cpu.x = max(0.0, min(float(map_w), self.cpu.x))
         self.cpu.y = max(0.0, min(float(HEIGHT), self.cpu.y))
+
+    @staticmethod
+    def _heading_delta_deg(a: float, b: float) -> float:
+        return abs((a - b + 180.0) % 360.0 - 180.0)
+
+    def _update_cpu_follow_heading_delay(self, now_ms: int) -> None:
+        current_heading = self.player.heading % 360.0
+        if self.cpu_pending_follow_heading_deg is None:
+            if self._heading_delta_deg(current_heading, self.cpu_follow_heading_deg) > 0.1:
+                self.cpu_pending_follow_heading_deg = current_heading
+                self.cpu_follow_heading_apply_at_ms = now_ms + random.randint(
+                    self.CPU_HEADING_FOLLOW_MIN_MS, self.CPU_HEADING_FOLLOW_MAX_MS
+                )
+        else:
+            if self._heading_delta_deg(current_heading, self.cpu_pending_follow_heading_deg) > 0.1:
+                self.cpu_pending_follow_heading_deg = current_heading
+                self.cpu_follow_heading_apply_at_ms = now_ms + random.randint(
+                    self.CPU_HEADING_FOLLOW_MIN_MS, self.CPU_HEADING_FOLLOW_MAX_MS
+                )
+            elif now_ms >= self.cpu_follow_heading_apply_at_ms:
+                self.cpu_follow_heading_deg = self.cpu_pending_follow_heading_deg
+                self.cpu_pending_follow_heading_deg = None
+
+    def _fire_player_weapon(self, weapon_idx: int, now_ms: int) -> bool:
+        if not (0 <= weapon_idx < len(self.player.weapons)):
+            return False
+        weapon = self.player.weapons[weapon_idx]
+        if not weapon.can_fire():
+            return False
+
+        hit, dmg = CombatSystem.execute_attack(self.player, weapon, self.cpu)
+        self._start_attack_animation(True, weapon.name, hit, now_ms)
+        if hit:
+            self.message = (
+                f"You fired {weapon.name} "
+                f"for {dmg} damage. "
+                "Keep firing while weapons are ready."
+            )
+        else:
+            self.message = (
+                f"You fired {weapon.name} "
+                "and MISSED. "
+                "Keep firing while weapons are ready."
+            )
+
+        if self.cpu.is_dead():
+            self.winner = "Player"
+            self.message = "You win! Press R to restart."
+        return True
 
     def _toggle_pause(self, now):
         self.is_paused = not self.is_paused
@@ -175,6 +230,10 @@ class BattleScreen(BaseScreen):
                 self.turn_left_held = False
                 self.turn_right_held = False
                 self.waypoints.clear()
+                self.queued_player_attacks.clear()
+                self.cpu_follow_heading_deg = self.player.heading
+                self.cpu_pending_follow_heading_deg = None
+                self.cpu_follow_heading_apply_at_ms = 0
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -238,28 +297,15 @@ class BattleScreen(BaseScreen):
                 if not self.is_paused:
                     for idx, btn_rect in self.weapon_buttons.items():
                         if btn_rect.collidepoint(pos):
-                            weapon = self.player.weapons[idx]
-                            hit, dmg = CombatSystem.execute_attack(
-                                self.player, weapon, self.cpu)
-                            self._start_attack_animation(
-                                True, weapon.name, hit, now
-                            )
-                            if hit:
-                                self.message = (
-                                    f"You fired {weapon.name} "
-                                    f"for {dmg} damage. "
-                                    "Keep firing while weapons are ready."
-                                )
+                            self._fire_player_weapon(idx, now)
+                            break
+                else:
+                    for idx, btn_rect in self.weapon_buttons.items():
+                        if btn_rect.collidepoint(pos):
+                            if idx in self.queued_player_attacks:
+                                self.queued_player_attacks.remove(idx)
                             else:
-                                self.message = (
-                                    f"You fired {weapon.name} "
-                                    "and MISSED. "
-                                    "Keep firing while weapons are ready."
-                                )
-
-                            if self.cpu.is_dead():
-                                self.winner = "Player"
-                                self.message = "You win! Press R to restart."
+                                self.queued_player_attacks.append(idx)
                             break
 
     def update(self, dt):
@@ -308,7 +354,16 @@ class BattleScreen(BaseScreen):
         self.player.x = max(0.0, min(float(map_w), self.player.x))
         self.player.y = max(0.0, min(float(HEIGHT), self.player.y))
 
-        player_heading_rad = math.radians(self.player.heading)
+        if self.queued_player_attacks and self.winner is None:
+            queued_idx = self.queued_player_attacks[0]
+            if self._fire_player_weapon(queued_idx, now):
+                self.queued_player_attacks.pop(0)
+            if self.winner is not None:
+                return
+
+        self._update_cpu_follow_heading_delay(now)
+
+        player_heading_rad = math.radians(self.cpu_follow_heading_deg)
         player_forward_x = math.sin(player_heading_rad)
         player_forward_y = -math.cos(player_heading_rad)
         target_x = self.player.x - player_forward_x * self.CPU_TRAIL_DISTANCE_PX
@@ -396,16 +451,12 @@ class BattleScreen(BaseScreen):
 
     def _start_attack_animation(self, player_fired, weapon_name, hit, now_ms):
         color = RED if weapon_name == "Laser" else YELLOW
-        map_w = self._current_map_width()
-        center_x = map_w // 2
-        start = (
-            center_x,
-            HEIGHT * 3 // 4 if player_fired else HEIGHT // 4,
-        )
-        target = (
-            center_x,
-            HEIGHT // 4 if player_fired else HEIGHT * 3 // 4,
-        )
+        if player_fired:
+            start = (self.player.x, self.player.y)
+            target = (self.cpu.x, self.cpu.y)
+        else:
+            start = (self.cpu.x, self.cpu.y)
+            target = (self.player.x, self.player.y)
         self.attack_animation = {
             "color": color,
             "start": start,
@@ -527,6 +578,7 @@ class BattleScreen(BaseScreen):
             self.ui_elements,
             self.weapon_detail_toggles,
             self.expanded_weapons,
+            set(self.queued_player_attacks),
         )
 
     def _draw_collapsed_bar(self, screen):

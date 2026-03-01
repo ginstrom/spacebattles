@@ -110,6 +110,10 @@ class TestScreens(unittest.TestCase):
         mock_get_ticks.return_value = 1000
         self.screen.is_paused = False
         self.screen.weapon_buttons = {0: pygame.Rect(100, 100, 50, 50)}
+        self.screen.player.x = 321.0
+        self.screen.player.y = 654.0
+        self.screen.cpu.x = 210.0
+        self.screen.cpu.y = 123.0
 
         with patch("src.systems.combat.CombatSystem.execute_attack") as mock_attack:
             mock_attack.return_value = (True, 50)
@@ -117,8 +121,20 @@ class TestScreens(unittest.TestCase):
             mock_attack.assert_called_once()
             self.assertIn("fired", self.screen.message)
             self.assertIsNotNone(self.screen.attack_animation)
-            self.assertEqual(self.screen.attack_animation["start"], (self.map_center_x, self.player_y))
-            self.assertEqual(self.screen.attack_animation["target"], (self.map_center_x, self.cpu_y))
+            self.assertEqual(self.screen.attack_animation["start"], (321.0, 654.0))
+            self.assertEqual(self.screen.attack_animation["target"], (210.0, 123.0))
+
+    @patch("pygame.time.get_ticks")
+    def test_handle_event_weapon_click_queues_while_paused(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = True
+        panel_x = WIDTH - PANEL_W + 10
+        self.screen.weapon_buttons = {0: pygame.Rect(panel_x, 100, 50, 50)}
+
+        with patch("src.systems.combat.CombatSystem.execute_attack") as mock_attack:
+            self.screen.handle_event(self._mouse_event(panel_x + 5, 110))
+            mock_attack.assert_not_called()
+            self.assertEqual(self.screen.queued_player_attacks, [0])
 
     @patch("pygame.time.get_ticks")
     def test_update_paused_does_not_tick_or_cpu_fire(self, mock_get_ticks):
@@ -145,15 +161,32 @@ class TestScreens(unittest.TestCase):
         self.screen.is_paused = False
         self.screen.cpu_fire_at_ms = 1000
         mock_get_ticks.return_value = 2000
+        self.screen.player.x = 330.0
+        self.screen.player.y = 700.0
+        self.screen.cpu.x = 450.0
+        self.screen.cpu.y = 140.0
 
         with patch("src.systems.combat.CombatSystem.execute_attack") as mock_attack:
             mock_attack.return_value = (True, 40)
             self.screen.update(16)
             mock_attack.assert_called_once()
             self.assertIsNotNone(self.screen.attack_animation)
-            self.assertEqual(self.screen.attack_animation["start"], (self.map_center_x, self.cpu_y))
-            self.assertEqual(self.screen.attack_animation["target"], (self.map_center_x, self.player_y))
+            self.assertEqual(self.screen.attack_animation["start"], (self.screen.cpu.x, self.screen.cpu.y))
+            self.assertEqual(self.screen.attack_animation["target"], (self.screen.player.x, self.screen.player.y))
             self.assertEqual(self.screen.cpu_fire_at_ms, 2000 + self.screen.CPU_DELAY_MS)
+
+    @patch("pygame.time.get_ticks")
+    def test_update_fires_queued_weapon_when_running(self, mock_get_ticks):
+        self.screen.is_paused = False
+        self.screen.cpu_fire_at_ms = None
+        self.screen.queued_player_attacks = [0]
+        mock_get_ticks.return_value = 2000
+
+        with patch("src.systems.combat.CombatSystem.execute_attack") as mock_attack:
+            mock_attack.return_value = (True, 40)
+            self.screen.update(16)
+            mock_attack.assert_called_once()
+            self.assertEqual(self.screen.queued_player_attacks, [])
 
     @patch("pygame.draw.rect")
     @patch("pygame.draw.line")
@@ -418,6 +451,32 @@ class TestScreens(unittest.TestCase):
         self.screen.update(16)
         distance = math.hypot(self.screen.player.x - self.screen.cpu.x, self.screen.player.y - self.screen.cpu.y)
         self.assertGreaterEqual(distance + 1e-6, self.screen.MIN_SHIP_SEPARATION_PX)
+
+    @patch("random.randint")
+    @patch("pygame.time.get_ticks")
+    def test_cpu_follow_heading_applies_after_delay(self, mock_get_ticks, mock_randint):
+        self.screen.is_paused = False
+        self.screen.cpu_fire_at_ms = None
+        self.screen.player.speed_px_s = 0.0
+        self.screen.cpu.speed_px_s = 0.0
+        self.screen.player.heading = 0.0
+        self.screen.cpu_follow_heading_deg = 0.0
+        self.screen.cpu_pending_follow_heading_deg = None
+        mock_randint.return_value = 2000
+
+        mock_get_ticks.return_value = 1000
+        self.screen.player.heading = 90.0
+        self.screen.update(16)
+        self.assertEqual(self.screen.cpu_follow_heading_deg, 0.0)
+        self.assertEqual(self.screen.cpu_follow_heading_apply_at_ms, 3000)
+
+        mock_get_ticks.return_value = 2500
+        self.screen.update(16)
+        self.assertEqual(self.screen.cpu_follow_heading_deg, 0.0)
+
+        mock_get_ticks.return_value = 3000
+        self.screen.update(16)
+        self.assertEqual(self.screen.cpu_follow_heading_deg, 90.0)
 
 
 if __name__ == "__main__":
