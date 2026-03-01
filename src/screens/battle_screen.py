@@ -73,6 +73,13 @@ class BattleScreen(BaseScreen):
         except (IndexError, TypeError, pygame.error):
             return False
 
+    @staticmethod
+    def _current_mods() -> int:
+        try:
+            return pygame.key.get_mods()
+        except pygame.error:
+            return 0
+
     def _is_map_point(self, pos):
         x, y = pos
         return 0 <= x <= self._current_map_width() and 0 <= y <= HEIGHT
@@ -121,6 +128,12 @@ class BattleScreen(BaseScreen):
                 self.cpu_follow_heading_deg = self.cpu_pending_follow_heading_deg
                 self.cpu_pending_follow_heading_deg = None
 
+    def _finish_game(self, winner: str) -> None:
+        self.winner = winner
+        result_message = "Computer wins!" if winner == "Computer" else "Player wins!"
+        from src.screens.menu_screen import MenuScreen
+        self.screen_manager.set_screen(MenuScreen, result_message=result_message)
+
     def _fire_player_weapon(self, weapon_idx: int, now_ms: int) -> bool:
         if not (0 <= weapon_idx < len(self.player.weapons)):
             return False
@@ -144,8 +157,7 @@ class BattleScreen(BaseScreen):
             )
 
         if self.cpu.is_dead():
-            self.winner = "Player"
-            self.message = "You win! Press R to restart."
+            self._finish_game("Player")
         return True
 
     def _toggle_pause(self, now):
@@ -258,13 +270,21 @@ class BattleScreen(BaseScreen):
         if (
             event.type == pygame.MOUSEBUTTONDOWN
             and self.is_paused
-            and event.button in (1, 3)
+            and event.button == 1
             and self._is_map_point(event.pos)
         ):
-            self.waypoints.append((float(event.pos[0]), float(event.pos[1])))
-            if hasattr(pygame.key, "stop_text_input"):
-                pygame.key.stop_text_input()
-            return
+            mods = self._current_mods()
+            pos = (float(event.pos[0]), float(event.pos[1]))
+            if mods & pygame.KMOD_CTRL:
+                self.waypoints = [pos]
+                if hasattr(pygame.key, "stop_text_input"):
+                    pygame.key.stop_text_input()
+                return
+            if mods & pygame.KMOD_SHIFT:
+                self.waypoints.append(pos)
+                if hasattr(pygame.key, "stop_text_input"):
+                    pygame.key.stop_text_input()
+                return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = event.pos
@@ -417,8 +437,8 @@ class BattleScreen(BaseScreen):
                     )
 
                 if self.player.is_dead():
-                    self.winner = "Computer"
-                    self.message = "You lose. Press R to restart."
+                    self._finish_game("Computer")
+                    return
             self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
 
     def draw(self, screen):

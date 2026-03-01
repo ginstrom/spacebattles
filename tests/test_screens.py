@@ -387,10 +387,32 @@ class TestScreens(unittest.TestCase):
     def test_paused_map_click_adds_waypoint(self, mock_get_ticks):
         event = MagicMock()
         event.type = pygame.MOUSEBUTTONDOWN
-        event.button = 3
+        event.button = 1
         event.pos = (100, 100)
-        self.screen.handle_event(event)
+        with patch("pygame.key.get_mods", return_value=0):
+            self.screen.handle_event(event)
+        self.assertEqual(self.screen.waypoints, [])
+
+    @patch("pygame.time.get_ticks")
+    def test_paused_shift_click_adds_waypoint(self, mock_get_ticks):
+        event = MagicMock()
+        event.type = pygame.MOUSEBUTTONDOWN
+        event.button = 1
+        event.pos = (100, 100)
+        with patch("pygame.key.get_mods", return_value=pygame.KMOD_SHIFT):
+            self.screen.handle_event(event)
         self.assertEqual(self.screen.waypoints, [(100.0, 100.0)])
+
+    @patch("pygame.time.get_ticks")
+    def test_paused_ctrl_click_replaces_waypoints(self, mock_get_ticks):
+        self.screen.waypoints = [(10.0, 20.0), (30.0, 40.0)]
+        event = MagicMock()
+        event.type = pygame.MOUSEBUTTONDOWN
+        event.button = 1
+        event.pos = (200, 220)
+        with patch("pygame.key.get_mods", return_value=pygame.KMOD_CTRL):
+            self.screen.handle_event(event)
+        self.assertEqual(self.screen.waypoints, [(200.0, 220.0)])
 
     @patch("pygame.time.get_ticks")
     def test_waypoint_autopilot_turns_toward_next_point(self, mock_get_ticks):
@@ -477,6 +499,21 @@ class TestScreens(unittest.TestCase):
         mock_get_ticks.return_value = 3000
         self.screen.update(16)
         self.assertEqual(self.screen.cpu_follow_heading_deg, 90.0)
+
+    @patch("pygame.time.get_ticks")
+    def test_winner_transitions_to_menu_screen(self, mock_get_ticks):
+        mock_get_ticks.return_value = 2000
+        self.screen.is_paused = False
+        self.screen.cpu_fire_at_ms = 1000
+        self.screen.player.hp = 10
+        def lethal_cpu_attack(*args, **kwargs):
+            self.screen.player.hp = 0
+            return (True, 20)
+
+        with patch("src.systems.combat.CombatSystem.execute_attack", side_effect=lethal_cpu_attack):
+            with patch.object(self.manager, "set_screen") as mock_set_screen:
+                self.screen.update(16)
+                mock_set_screen.assert_called_once()
 
 
 if __name__ == "__main__":

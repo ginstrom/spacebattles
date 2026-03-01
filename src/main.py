@@ -9,7 +9,7 @@ from pathlib import Path
 import pygame
 from src.constants import WIDTH, HEIGHT, FPS
 from src.core.screen_manager import ScreenManager
-from src.screens.battle_screen import BattleScreen
+from src.screens.menu_screen import MenuScreen
 
 
 def configure_logging(log_path: str | Path = "spacebattle.log") -> Path:
@@ -30,12 +30,14 @@ def configure_logging(log_path: str | Path = "spacebattle.log") -> Path:
 
 def build_game() -> tuple[ScreenManager, pygame.time.Clock]:
     pygame.init()
+    if hasattr(pygame.key, "stop_text_input"):
+        pygame.key.stop_text_input()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Ship Duel")
     clock = pygame.time.Clock()
 
     manager = ScreenManager(screen)
-    manager.set_screen(BattleScreen)
+    manager.set_screen(MenuScreen)
     return manager, clock
 
 
