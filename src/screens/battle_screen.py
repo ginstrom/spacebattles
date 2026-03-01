@@ -67,6 +67,8 @@ class BattleScreen(BaseScreen):
         self.cpu_follow_heading_deg = self.player.heading
         self.cpu_pending_follow_heading_deg: float | None = None
         self.cpu_follow_heading_apply_at_ms = 0
+        self.map_dragging = False
+        self.map_drag_last_pos: tuple[int, int] | None = None
 
     def _current_map_width(self):
         return WIDTH - PANEL_W if self.panel_expanded else WIDTH
@@ -91,6 +93,13 @@ class BattleScreen(BaseScreen):
 
     def _screen_to_world(self, pos: tuple[int, int]) -> tuple[float, float]:
         return float(pos[0]) + self.map_view_x, float(pos[1]) + self.map_view_y
+
+    def _clamp_map_view(self) -> None:
+        map_w = self._current_map_width()
+        max_x = max(0.0, float(self.map_world_w - map_w))
+        max_y = max(0.0, float(self.map_world_h - HEIGHT))
+        self.map_view_x = max(0.0, min(max_x, self.map_view_x))
+        self.map_view_y = max(0.0, min(max_y, self.map_view_y))
 
     def _enforce_minimum_ship_separation(self) -> None:
         dx = self.player.x - self.cpu.x
@@ -255,6 +264,8 @@ class BattleScreen(BaseScreen):
                 self.cpu_follow_heading_deg = self.player.heading
                 self.cpu_pending_follow_heading_deg = None
                 self.cpu_follow_heading_apply_at_ms = 0
+                self.map_dragging = False
+                self.map_drag_last_pos = None
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -276,29 +287,56 @@ class BattleScreen(BaseScreen):
             self.turn_right_held = False
             return
 
+        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            self.map_dragging = False
+            self.map_drag_last_pos = None
+            return
+
+        if event.type == pygame.MOUSEMOTION and self.map_dragging:
+            if self.map_drag_last_pos is not None:
+                dx = event.pos[0] - self.map_drag_last_pos[0]
+                dy = event.pos[1] - self.map_drag_last_pos[1]
+                self.map_view_x -= float(dx)
+                self.map_view_y -= float(dy)
+                self._clamp_map_view()
+            self.map_drag_last_pos = event.pos
+            return
+
         if (
             event.type == pygame.MOUSEBUTTONDOWN
-            and self.is_paused
             and event.button == 1
             and self._is_map_point(event.pos)
         ):
             mods = self._current_mods()
-            pos = self._screen_to_world(event.pos)
-            if mods & pygame.KMOD_CTRL:
-                self.waypoints = [pos]
-                if hasattr(pygame.key, "stop_text_input"):
-                    pygame.key.stop_text_input()
-                return
-            if mods & pygame.KMOD_SHIFT:
-                self.waypoints.append(pos)
-                if hasattr(pygame.key, "stop_text_input"):
-                    pygame.key.stop_text_input()
+            if self.is_paused:
+                pos = self._screen_to_world(event.pos)
+                if mods & pygame.KMOD_CTRL:
+                    self.waypoints = [pos]
+                    if hasattr(pygame.key, "stop_text_input"):
+                        pygame.key.stop_text_input()
+                    return
+                if mods & pygame.KMOD_SHIFT:
+                    self.waypoints.append(pos)
+                    if hasattr(pygame.key, "stop_text_input"):
+                        pygame.key.stop_text_input()
+                    return
+            click_hits_ui = (
+                self.toggle_tab_rect.collidepoint(event.pos)
+                or any(r.collidepoint(event.pos) for r in self.weapon_buttons.values())
+                or any(r.collidepoint(event.pos) for r in self.weapon_detail_toggles.values())
+                or any(r.collidepoint(event.pos) for r in self.cpu_weapon_buttons.values())
+                or any(r.collidepoint(event.pos) for r in self.cpu_weapon_detail_toggles.values())
+            )
+            if not click_hits_ui:
+                self.map_dragging = True
+                self.map_drag_last_pos = event.pos
                 return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = event.pos
             if self.toggle_tab_rect.collidepoint(pos):
                 self.panel_expanded = not self.panel_expanded
+                self._clamp_map_view()
                 self.weapon_buttons.clear()
                 self.weapon_detail_toggles.clear()
                 self.cpu_weapon_buttons.clear()

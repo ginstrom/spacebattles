@@ -420,6 +420,48 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(self.screen.waypoints, [self.screen._screen_to_world((200, 220))])
 
     @patch("pygame.time.get_ticks")
+    def test_map_drag_pans_viewport(self, mock_get_ticks):
+        self.screen.map_view_x = 600.0
+        self.screen.map_view_y = 500.0
+
+        down_event = MagicMock()
+        down_event.type = pygame.MOUSEBUTTONDOWN
+        down_event.button = 1
+        down_event.pos = (200, 200)
+        with patch("pygame.key.get_mods", return_value=0):
+            self.screen.handle_event(down_event)
+
+        move_event = MagicMock()
+        move_event.type = pygame.MOUSEMOTION
+        move_event.pos = (230, 245)
+        self.screen.handle_event(move_event)
+
+        self.assertEqual(self.screen.map_view_x, 570.0)
+        self.assertEqual(self.screen.map_view_y, 455.0)
+
+    @patch("pygame.time.get_ticks")
+    def test_map_drag_clamps_viewport_bounds(self, mock_get_ticks):
+        max_x = float(self.screen.map_world_w - self.screen._current_map_width())
+        max_y = float(self.screen.map_world_h - HEIGHT)
+        self.screen.map_view_x = max_x
+        self.screen.map_view_y = max_y
+
+        down_event = MagicMock()
+        down_event.type = pygame.MOUSEBUTTONDOWN
+        down_event.button = 1
+        down_event.pos = (300, 300)
+        with patch("pygame.key.get_mods", return_value=0):
+            self.screen.handle_event(down_event)
+
+        move_event = MagicMock()
+        move_event.type = pygame.MOUSEMOTION
+        move_event.pos = (0, 0)
+        self.screen.handle_event(move_event)
+
+        self.assertEqual(self.screen.map_view_x, max_x)
+        self.assertEqual(self.screen.map_view_y, max_y)
+
+    @patch("pygame.time.get_ticks")
     def test_virtual_map_allows_movement_beyond_visible_width(self, mock_get_ticks):
         mock_get_ticks.return_value = 1000
         self.screen.is_paused = False
