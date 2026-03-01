@@ -11,7 +11,6 @@ from src.constants import (
     SHIP_ICON_SIZE,
     WHITE,
 )
-from src.utils.helpers import hp_color
 from src.ui.elements import draw_enemy_icon, draw_player_icon
 from src.models.ship import Ship
 
@@ -105,17 +104,6 @@ class Map:
         name_surf = small_font.render(cpu.name, True, WHITE)
         surf.blit(name_surf, name_surf.get_rect(
             centerx=cpu_cx, top=cpu_cy + icon_size // 2 + 12))
-        bar_w = 100
-        bar_h = 8
-        bar_x = cpu_cx - bar_w // 2
-        bar_y = cpu_cy + icon_size // 2 + 12 + name_surf.get_height() + 4
-        pygame.draw.rect(surf, (60, 60, 80), (bar_x, bar_y,
-                         bar_w, bar_h), border_radius=4)
-        fill_w = int(bar_w * max(0, cpu.hp) /
-                     cpu.max_hp) if cpu.max_hp > 0 else 0
-        if fill_w > 0:
-            pygame.draw.rect(surf, hp_color(cpu.hp, cpu.max_hp),
-                             (bar_x, bar_y, fill_w, bar_h), border_radius=4)
 
         # Player
         player_cx = int(player.x)
@@ -128,18 +116,3 @@ class Map:
         p_name_rect = p_name_surf.get_rect(
             centerx=player_cx, bottom=player_cy - icon_size // 2 - 12)
         surf.blit(p_name_surf, p_name_rect)
-        p_bar_y = p_name_rect.top - bar_h - 4
-        p_bar_x = player_cx - bar_w // 2
-        pygame.draw.rect(surf, (60, 60, 80),
-                         (p_bar_x, p_bar_y, bar_w, bar_h), border_radius=4)
-        p_fill_w = int(bar_w * max(0, player.hp) /
-                       player.max_hp) if player.max_hp > 0 else 0
-        if p_fill_w > 0:
-            pygame.draw.rect(
-                surf,
-                hp_color(player.hp, player.max_hp),
-                (p_bar_x,
-                 p_bar_y,
-                 p_fill_w,
-                 bar_h),
-                border_radius=4)

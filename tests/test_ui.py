@@ -4,7 +4,7 @@ import pygame
 from src.ui.map import Map
 from src.models.ship import Ship
 from src.models.weapon import Weapon
-from src.constants import HEIGHT, SHIP_ICON_SIZE
+from src.constants import HEIGHT
 
 
 class TestUI(unittest.TestCase):
@@ -98,7 +98,7 @@ class TestUI(unittest.TestCase):
     @patch('pygame.draw.circle')
     @patch('pygame.draw.line')
     @patch('pygame.draw.rect')
-    def test_map_player_hp_bar_does_not_overlap_player_name(
+    def test_map_draw_does_not_render_ship_hp_bars(
         self,
         mock_rect,
         mock_line,
@@ -112,22 +112,9 @@ class TestUI(unittest.TestCase):
         )
 
         background_bar_rects = [
-            call.args[2]
-            for call in mock_rect.call_args_list
-            if call.args[1] == (60, 60, 80)
+            call for call in mock_rect.call_args_list if call.args[1] == (60, 60, 80)
         ]
-        self.assertEqual(len(background_bar_rects), 2)
-        player_bar_rect = max(background_bar_rects, key=lambda rect: rect[1])
-
-        player_cy = HEIGHT * 3 // 4
-        icon_size = SHIP_ICON_SIZE
-        name_height = self.mock_small_font.render.return_value.get_height()
-        name_bottom = player_cy - icon_size // 2 - 12
-        name_top = name_bottom - name_height
-
-        # Keep 4px visual gap between player name and HP bar.
-        self.assertLessEqual(
-            player_bar_rect[1] + player_bar_rect[3], name_top - 4)
+        self.assertEqual(background_bar_rects, [])
 
     @patch('pygame.draw.polygon')
     def test_draw_enemy_icon(self, mock_polygon):
