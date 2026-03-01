@@ -304,6 +304,30 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(self.screen.player.x, 0.0)
         self.assertEqual(self.screen.player.y, 0.0)
 
+    @patch("pygame.time.get_ticks")
+    def test_cpu_rotates_toward_player(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.cpu_fire_at_ms = None
+        self.screen.cpu.heading = 0.0
+        self.screen.player.speed_px_s = 0.0
+        self.screen.player.x = self.screen.cpu.x + 100.0
+        self.screen.player.y = self.screen.cpu.y
+
+        self.screen.update(1000)
+        self.assertEqual(self.screen.cpu.heading, 90.0)
+
+    @patch("pygame.time.get_ticks")
+    def test_cpu_moves_forward_when_running(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.cpu_fire_at_ms = None
+        self.screen.cpu.heading = 180.0
+        start_y = self.screen.cpu.y
+
+        self.screen.update(1000)
+        self.assertEqual(self.screen.cpu.y, start_y + self.screen.cpu.speed_px_s)
+
 
 if __name__ == "__main__":
     unittest.main()

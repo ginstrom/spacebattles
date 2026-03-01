@@ -237,6 +237,24 @@ class BattleScreen(BaseScreen):
         self.player.x = max(0.0, min(float(map_w), self.player.x))
         self.player.y = max(0.0, min(float(HEIGHT), self.player.y))
 
+        dx = self.player.x - self.cpu.x
+        dy = self.player.y - self.cpu.y
+        if dx != 0.0 or dy != 0.0:
+            target_heading = math.degrees(math.atan2(dx, -dy)) % 360.0
+            delta = (target_heading - self.cpu.heading + 540.0) % 360.0 - 180.0
+            max_turn = self.cpu.rotation_speed_deg_s * dt_seconds
+            if delta > max_turn:
+                delta = max_turn
+            elif delta < -max_turn:
+                delta = -max_turn
+            self.cpu.heading = (self.cpu.heading + delta) % 360.0
+
+        cpu_heading_rad = math.radians(self.cpu.heading)
+        self.cpu.x += math.sin(cpu_heading_rad) * self.cpu.speed_px_s * dt_seconds
+        self.cpu.y -= math.cos(cpu_heading_rad) * self.cpu.speed_px_s * dt_seconds
+        self.cpu.x = max(0.0, min(float(map_w), self.cpu.x))
+        self.cpu.y = max(0.0, min(float(HEIGHT), self.cpu.y))
+
         if self.cpu_fire_at_ms is not None and now >= self.cpu_fire_at_ms:
             available = [w for w in self.cpu.weapons if w.can_fire()]
             if available:
