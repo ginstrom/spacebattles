@@ -74,6 +74,7 @@ class BattleScreen(BaseScreen):
     def _make_game(self):
         # Create unique instances for each ship
         # To match the "From: [laser x 2] [ion beam x 1]" example:
+        map_center_x = (WIDTH - PANEL_W) / 2.0
         p_weapons = []
         laser = self.available_weapons["Laser"]
         ion = self.available_weapons["Ion Beam"]
@@ -97,12 +98,18 @@ class BattleScreen(BaseScreen):
             max_hp=750,
             hp=750,
             weapons=p_weapons,
+            x=map_center_x,
+            y=HEIGHT * 3 / 4,
+            heading=0.0,
         )
         cpu = Ship(
             name="Computer",
             max_hp=500,
             hp=500,
             weapons=c_weapons,
+            x=map_center_x,
+            y=HEIGHT / 4,
+            heading=180.0,
         )
         return player, cpu
 

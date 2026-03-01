@@ -4,6 +4,7 @@ import pygame
 from src.screens.battle_screen import BattleScreen
 from src.core.screen_manager import ScreenManager
 from src.constants import WIDTH, HEIGHT, PANEL_W
+from src.models.ship import Ship
 
 
 class TestScreens(unittest.TestCase):
@@ -38,6 +39,24 @@ class TestScreens(unittest.TestCase):
         self.assertTrue(self.screen.is_paused)
         self.assertIn("Paused", self.screen.message)
         self.assertIsNone(self.screen.winner)
+
+    @patch("pygame.time.get_ticks")
+    def test_battle_screen_initial_ship_spatial_state(self, mock_get_ticks):
+        map_center_x = (WIDTH - PANEL_W) / 2.0
+        self.assertEqual(self.screen.player.x, map_center_x)
+        self.assertEqual(self.screen.player.y, HEIGHT * 3 / 4)
+        self.assertEqual(self.screen.player.heading, 0.0)
+        self.assertEqual(self.screen.cpu.x, map_center_x)
+        self.assertEqual(self.screen.cpu.y, HEIGHT / 4)
+        self.assertEqual(self.screen.cpu.heading, 180.0)
+
+    def test_ship_spatial_defaults(self):
+        ship = Ship("Test", 100, 100, [])
+        self.assertEqual(ship.x, 0.0)
+        self.assertEqual(ship.y, 0.0)
+        self.assertEqual(ship.heading, 0.0)
+        self.assertEqual(ship.speed_px_s, HEIGHT / 20.0)
+        self.assertEqual(ship.rotation_speed_deg_s, 90.0)
 
     @patch("pygame.time.get_ticks")
     def test_space_toggles_pause(self, mock_get_ticks):
