@@ -28,8 +28,13 @@ class BattleScreen(BaseScreen):
         self.small_font = pygame.font.SysFont(None, 22)
 
         self.available_weapons = Weapon.load_weapons("data/weapons.yaml")
+        self.map_world_w = int((WIDTH - PANEL_W) * 3)
+        self.map_world_h = int(HEIGHT * 3)
+        self.map_view_x = (self.map_world_w - (WIDTH - PANEL_W)) / 2.0
+        self.map_view_y = (self.map_world_h - HEIGHT) / 2.0
         self.player, self.cpu = self._make_game()
-        self.map = Map(make_stars())
+        star_count = max(150, (self.map_world_w * self.map_world_h) // 10000)
+        self.map = Map(make_stars(star_count, self.map_world_w, self.map_world_h))
 
         self.is_paused = True
         self.message = "Paused. Press Space to start."
@@ -84,7 +89,10 @@ class BattleScreen(BaseScreen):
         x, y = pos
         return 0 <= x <= self._current_map_width() and 0 <= y <= HEIGHT
 
-    def _enforce_minimum_ship_separation(self, map_w: int) -> None:
+    def _screen_to_world(self, pos: tuple[int, int]) -> tuple[float, float]:
+        return float(pos[0]) + self.map_view_x, float(pos[1]) + self.map_view_y
+
+    def _enforce_minimum_ship_separation(self) -> None:
         dx = self.player.x - self.cpu.x
         dy = self.player.y - self.cpu.y
         dist = math.hypot(dx, dy)
@@ -101,10 +109,10 @@ class BattleScreen(BaseScreen):
         self.cpu.x -= nx * push
         self.cpu.y -= ny * push
 
-        self.player.x = max(0.0, min(float(map_w), self.player.x))
-        self.player.y = max(0.0, min(float(HEIGHT), self.player.y))
-        self.cpu.x = max(0.0, min(float(map_w), self.cpu.x))
-        self.cpu.y = max(0.0, min(float(HEIGHT), self.cpu.y))
+        self.player.x = max(0.0, min(float(self.map_world_w), self.player.x))
+        self.player.y = max(0.0, min(float(self.map_world_h), self.player.y))
+        self.cpu.x = max(0.0, min(float(self.map_world_w), self.cpu.x))
+        self.cpu.y = max(0.0, min(float(self.map_world_h), self.cpu.y))
 
     @staticmethod
     def _heading_delta_deg(a: float, b: float) -> float:
@@ -182,7 +190,8 @@ class BattleScreen(BaseScreen):
     def _make_game(self):
         # Create unique instances for each ship
         # To match the "From: [laser x 2] [ion beam x 1]" example:
-        map_center_x = (WIDTH - PANEL_W) / 2.0
+        map_center_x = self.map_world_w / 2.0
+        map_center_y = self.map_world_h / 2.0
         p_weapons = []
         laser = self.available_weapons["Laser"]
         ion = self.available_weapons["Ion Beam"]
@@ -207,7 +216,7 @@ class BattleScreen(BaseScreen):
             hp=750,
             weapons=p_weapons,
             x=map_center_x,
-            y=HEIGHT * 3 / 4,
+            y=map_center_y + HEIGHT / 4.0,
             heading=0.0,
         )
         cpu = Ship(
@@ -216,7 +225,7 @@ class BattleScreen(BaseScreen):
             hp=500,
             weapons=c_weapons,
             x=map_center_x,
-            y=HEIGHT / 4,
+            y=map_center_y - HEIGHT / 4.0,
             heading=180.0,
         )
         return player, cpu
@@ -274,7 +283,7 @@ class BattleScreen(BaseScreen):
             and self._is_map_point(event.pos)
         ):
             mods = self._current_mods()
-            pos = (float(event.pos[0]), float(event.pos[1]))
+            pos = self._screen_to_world(event.pos)
             if mods & pygame.KMOD_CTRL:
                 self.waypoints = [pos]
                 if hasattr(pygame.key, "stop_text_input"):
@@ -370,9 +379,8 @@ class BattleScreen(BaseScreen):
         heading_rad = math.radians(self.player.heading)
         self.player.x += math.sin(heading_rad) * self.player.speed_px_s * dt_seconds
         self.player.y -= math.cos(heading_rad) * self.player.speed_px_s * dt_seconds
-        map_w = self._current_map_width()
-        self.player.x = max(0.0, min(float(map_w), self.player.x))
-        self.player.y = max(0.0, min(float(HEIGHT), self.player.y))
+        self.player.x = max(0.0, min(float(self.map_world_w), self.player.x))
+        self.player.y = max(0.0, min(float(self.map_world_h), self.player.y))
 
         if self.queued_player_attacks and self.winner is None:
             queued_idx = self.queued_player_attacks[0]
@@ -413,9 +421,9 @@ class BattleScreen(BaseScreen):
         cpu_heading_rad = math.radians(self.cpu.heading)
         self.cpu.x += math.sin(cpu_heading_rad) * self.cpu.speed_px_s * dt_seconds
         self.cpu.y -= math.cos(cpu_heading_rad) * self.cpu.speed_px_s * dt_seconds
-        self.cpu.x = max(0.0, min(float(map_w), self.cpu.x))
-        self.cpu.y = max(0.0, min(float(HEIGHT), self.cpu.y))
-        self._enforce_minimum_ship_separation(map_w)
+        self.cpu.x = max(0.0, min(float(self.map_world_w), self.cpu.x))
+        self.cpu.y = max(0.0, min(float(self.map_world_h), self.cpu.y))
+        self._enforce_minimum_ship_separation()
 
         if self.cpu_fire_at_ms is not None and now >= self.cpu_fire_at_ms:
             available = [w for w in self.cpu.weapons if w.can_fire()]
@@ -456,6 +464,8 @@ class BattleScreen(BaseScreen):
             self.font,
             self.small_font,
             self.waypoints,
+            self.map_view_x,
+            self.map_view_y,
         )
         self._draw_attack_animation(screen, map_w)
 
@@ -527,16 +537,24 @@ class BattleScreen(BaseScreen):
 
         progress = max(0.0, min(1.0, elapsed / duration))
         beam_w = max(2, int(7 * (1.0 - progress)))
+        start = (
+            self.attack_animation["start"][0] - self.map_view_x,
+            self.attack_animation["start"][1] - self.map_view_y,
+        )
+        target = (
+            self.attack_animation["target"][0] - self.map_view_x,
+            self.attack_animation["target"][1] - self.map_view_y,
+        )
 
         old_clip = screen.get_clip()
         screen.set_clip(pygame.Rect(0, 0, map_w, HEIGHT))
         pygame.draw.line(
             screen,
             self.attack_animation["color"],
-            self.attack_animation["start"],
+            start,
             self._beam_end_for_draw(
-                self.attack_animation["start"],
-                self.attack_animation["target"],
+                start,
+                target,
                 self.attack_animation["missed"],
                 map_w,
             ),

@@ -16,11 +16,15 @@ def hp_color(hp: int, max_hp: int) -> tuple[int, int, int]:
     return RED
 
 
-def make_stars(n: int = 150) -> list[tuple[int, int, int, int]]:
+def make_stars(
+    n: int = 150,
+    max_width: int = WIDTH,
+    max_height: int = HEIGHT,
+) -> list[tuple[int, int, int, int]]:
     stars = []
     for _ in range(n):
-        x = random.randint(0, WIDTH)
-        y = random.randint(0, HEIGHT)
+        x = random.randint(0, max_width)
+        y = random.randint(0, max_height)
         brightness = random.randint(120, 255)
         size = random.randint(1, 3)
         stars.append((x, y, brightness, size))

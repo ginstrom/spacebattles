@@ -64,12 +64,13 @@ class TestScreens(unittest.TestCase):
 
     @patch("pygame.time.get_ticks")
     def test_battle_screen_initial_ship_spatial_state(self, mock_get_ticks):
-        map_center_x = (WIDTH - PANEL_W) / 2.0
+        map_center_x = self.screen.map_world_w / 2.0
+        map_center_y = self.screen.map_world_h / 2.0
         self.assertEqual(self.screen.player.x, map_center_x)
-        self.assertEqual(self.screen.player.y, HEIGHT * 3 / 4)
+        self.assertEqual(self.screen.player.y, map_center_y + HEIGHT / 4.0)
         self.assertEqual(self.screen.player.heading, 0.0)
         self.assertEqual(self.screen.cpu.x, map_center_x)
-        self.assertEqual(self.screen.cpu.y, HEIGHT / 4)
+        self.assertEqual(self.screen.cpu.y, map_center_y - HEIGHT / 4.0)
         self.assertEqual(self.screen.cpu.heading, 180.0)
 
     def test_ship_spatial_defaults(self):
@@ -192,6 +193,8 @@ class TestScreens(unittest.TestCase):
     @patch("pygame.draw.line")
     @patch("pygame.time.get_ticks")
     def test_draw_renders_attack_animation(self, mock_get_ticks, mock_line, mock_rect):
+        self.screen.map_view_x = 0.0
+        self.screen.map_view_y = 0.0
         self.screen.attack_animation = {
             "color": (230, 80, 80),
             "start": (100, 100),
@@ -210,6 +213,8 @@ class TestScreens(unittest.TestCase):
     @patch("pygame.draw.line")
     @patch("pygame.time.get_ticks")
     def test_draw_miss_extends_beam_to_screen_edge(self, mock_get_ticks, mock_line, mock_rect):
+        self.screen.map_view_x = 0.0
+        self.screen.map_view_y = 0.0
         self.screen.attack_animation = {
             "color": (230, 80, 80),
             "start": (450, 525),
@@ -401,7 +406,7 @@ class TestScreens(unittest.TestCase):
         event.pos = (100, 100)
         with patch("pygame.key.get_mods", return_value=pygame.KMOD_SHIFT):
             self.screen.handle_event(event)
-        self.assertEqual(self.screen.waypoints, [(100.0, 100.0)])
+        self.assertEqual(self.screen.waypoints, [self.screen._screen_to_world((100, 100))])
 
     @patch("pygame.time.get_ticks")
     def test_paused_ctrl_click_replaces_waypoints(self, mock_get_ticks):
@@ -412,7 +417,21 @@ class TestScreens(unittest.TestCase):
         event.pos = (200, 220)
         with patch("pygame.key.get_mods", return_value=pygame.KMOD_CTRL):
             self.screen.handle_event(event)
-        self.assertEqual(self.screen.waypoints, [(200.0, 220.0)])
+        self.assertEqual(self.screen.waypoints, [self.screen._screen_to_world((200, 220))])
+
+    @patch("pygame.time.get_ticks")
+    def test_virtual_map_allows_movement_beyond_visible_width(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.cpu_fire_at_ms = None
+        self.screen.player.speed_px_s = 200.0
+        self.screen.player.heading = 90.0
+        self.screen.player.x = self.screen.map_view_x + self.screen._current_map_width() - 5.0
+        self.screen.player.y = self.screen.map_view_y + HEIGHT / 2.0
+
+        self.screen.update(1000)
+        self.assertGreater(self.screen.player.x, self.screen.map_view_x + self.screen._current_map_width())
+        self.assertLessEqual(self.screen.player.x, self.screen.map_world_w)
 
     @patch("pygame.time.get_ticks")
     def test_waypoint_autopilot_turns_toward_next_point(self, mock_get_ticks):
