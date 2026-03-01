@@ -25,9 +25,11 @@ class TestUI(unittest.TestCase):
         self.mock_font.get_linesize.return_value = 20
 
         self.player = Ship("Player", 100, 100, [
-                           Weapon("Laser", (10, 20), 1, 100, 0, 5)])
+                           Weapon("Laser", (10, 20), 1, 100, 0, 5)],
+                           x=400.0, y=HEIGHT * 3 / 4, heading=0.0)
         self.cpu = Ship("CPU", 100, 100, [
-                        Weapon("Laser", (10, 20), 1, 100, 0, 5)])
+                        Weapon("Laser", (10, 20), 1, 100, 0, 5)],
+                        x=400.0, y=HEIGHT / 4, heading=180.0)
 
     @patch('src.ui.map.draw_enemy_icon')
     @patch('src.ui.map.draw_player_icon')
@@ -68,6 +70,28 @@ class TestUI(unittest.TestCase):
         # Verify icons were drawn
         mock_enemy_icon.assert_called_once()
         mock_player_icon.assert_called_once()
+
+    @patch('src.ui.map.draw_player_icon')
+    @patch('pygame.draw.line')
+    def test_map_draw_ghost_route(self, mock_line, mock_player_icon):
+        waypoints = [(500.0, 600.0), (600.0, 650.0)]
+        test_surface = pygame.Surface((800, HEIGHT))
+        self.mock_small_font.render.return_value = pygame.Surface((50, 20))
+        self.map_obj.draw(
+            test_surface,
+            800,
+            self.player,
+            self.cpu,
+            False,
+            None,
+            self.mock_font,
+            self.mock_small_font,
+            waypoints,
+        )
+
+        # Regular player icon + ghost icon render.
+        self.assertGreaterEqual(mock_player_icon.call_count, 2)
+        self.assertTrue(mock_line.called)
 
     @patch('src.ui.map.draw_enemy_icon')
     @patch('src.ui.map.draw_player_icon')

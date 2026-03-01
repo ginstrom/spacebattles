@@ -327,6 +327,7 @@ class BattleScreen(BaseScreen):
             self.winner,
             self.font,
             self.small_font,
+            self.waypoints,
         )
         self._draw_attack_animation(screen, map_w)
 
