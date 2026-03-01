@@ -2,6 +2,7 @@
 Reusable UI components for the game, including ship icons,
 info cards, and health bars.
 """
+from pathlib import Path
 import pygame
 from src.constants import (
     PANEL_BG,
@@ -13,8 +14,44 @@ from src.constants import (
 from src.utils.helpers import hp_color
 from src.models.ship import Ship
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_PLAYER_ICON_PATH = _PROJECT_ROOT / "assets/images/ships/player_default.png"
+_ENEMY_ICON_PATH = _PROJECT_ROOT / "assets/images/ships/computer_default.png"
+_ICON_CACHE: dict[tuple[str, int], pygame.Surface | None] = {}
+
+
+def _load_icon_surface(path: Path, size: int) -> pygame.Surface | None:
+    key = (str(path), size)
+    if key in _ICON_CACHE:
+        return _ICON_CACHE[key]
+
+    if not path.exists():
+        _ICON_CACHE[key] = None
+        return None
+
+    try:
+        loaded = pygame.image.load(str(path))
+        _ICON_CACHE[key] = pygame.transform.smoothscale(loaded, (size, size))
+    except pygame.error:
+        _ICON_CACHE[key] = None
+    return _ICON_CACHE[key]
+
+
+def get_enemy_icon_surface(size: int) -> pygame.Surface | None:
+    return _load_icon_surface(_ENEMY_ICON_PATH, size)
+
+
+def get_player_icon_surface(size: int) -> pygame.Surface | None:
+    return _load_icon_surface(_PLAYER_ICON_PATH, size)
+
 
 def draw_enemy_icon(surf: pygame.Surface, cx: int, cy: int, size: int) -> None:
+    icon = get_enemy_icon_surface(size)
+    if icon is not None:
+        rotated_icon = pygame.transform.rotate(icon, 180)
+        surf.blit(rotated_icon, rotated_icon.get_rect(center=(cx, cy)))
+        return
+
     half = size // 2
     points = [
         (cx, cy + half),
@@ -30,6 +67,11 @@ def draw_player_icon(
         cx: int,
         cy: int,
         size: int) -> None:
+    icon = get_player_icon_surface(size)
+    if icon is not None:
+        surf.blit(icon, icon.get_rect(center=(cx, cy)))
+        return
+
     half = size // 2
     pygame.draw.circle(surf, (180, 110, 70), (cx, cy), half)
     pygame.draw.circle(surf, PANEL_BORDER, (cx, cy), half, 2)

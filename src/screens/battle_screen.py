@@ -21,6 +21,8 @@ _log = logging.getLogger(__name__)
 class BattleScreen(BaseScreen):
     def __init__(self, screen_manager):
         super().__init__(screen_manager)
+        if hasattr(pygame.key, "stop_text_input"):
+            pygame.key.stop_text_input()
         self.font = pygame.font.SysFont(None, 28)
         self.big_font = pygame.font.SysFont(None, 44)
         self.small_font = pygame.font.SysFont(None, 22)
@@ -36,6 +38,8 @@ class BattleScreen(BaseScreen):
         self.cpu_fire_at_ms = None
         self.CPU_DELAY_MS = 900
         self.ATTACK_ANIM_MS = 240
+        self.CPU_TRAIL_DISTANCE_PX = SHIP_ICON_SIZE * 2.0
+        self.MIN_SHIP_SEPARATION_PX = SHIP_ICON_SIZE * 1.2
 
         self.weapon_buttons = {}
         self.weapon_detail_toggles = {}
@@ -56,9 +60,38 @@ class BattleScreen(BaseScreen):
     def _current_map_width(self):
         return WIDTH - PANEL_W if self.panel_expanded else WIDTH
 
+    @staticmethod
+    def _is_key_physically_pressed(key_code: int) -> bool:
+        try:
+            return bool(pygame.key.get_pressed()[key_code])
+        except (IndexError, TypeError, pygame.error):
+            return False
+
     def _is_map_point(self, pos):
         x, y = pos
         return 0 <= x <= self._current_map_width() and 0 <= y <= HEIGHT
+
+    def _enforce_minimum_ship_separation(self, map_w: int) -> None:
+        dx = self.player.x - self.cpu.x
+        dy = self.player.y - self.cpu.y
+        dist = math.hypot(dx, dy)
+        if dist >= self.MIN_SHIP_SEPARATION_PX:
+            return
+        if dist <= 1e-6:
+            dx, dy, dist = 1.0, 0.0, 1.0
+        nx = dx / dist
+        ny = dy / dist
+        push = (self.MIN_SHIP_SEPARATION_PX - dist) / 2.0
+
+        self.player.x += nx * push
+        self.player.y += ny * push
+        self.cpu.x -= nx * push
+        self.cpu.y -= ny * push
+
+        self.player.x = max(0.0, min(float(map_w), self.player.x))
+        self.player.y = max(0.0, min(float(HEIGHT), self.player.y))
+        self.cpu.x = max(0.0, min(float(map_w), self.cpu.x))
+        self.cpu.y = max(0.0, min(float(HEIGHT), self.cpu.y))
 
     def _toggle_pause(self, now):
         self.is_paused = not self.is_paused
@@ -170,6 +203,8 @@ class BattleScreen(BaseScreen):
             and self._is_map_point(event.pos)
         ):
             self.waypoints.append((float(event.pos[0]), float(event.pos[1])))
+            if hasattr(pygame.key, "stop_text_input"):
+                pygame.key.stop_text_input()
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -239,13 +274,15 @@ class BattleScreen(BaseScreen):
         for w in self.cpu.weapons:
             w.tick_seconds(dt_seconds)
 
-        manual_override = self.turn_left_held or self.turn_right_held
+        left_pressed = self.turn_left_held or self._is_key_physically_pressed(pygame.K_a)
+        right_pressed = self.turn_right_held or self._is_key_physically_pressed(pygame.K_d)
+        manual_override = left_pressed or right_pressed
         if manual_override and self.waypoints:
             self.waypoints.clear()
 
-        if self.turn_left_held:
+        if left_pressed:
             self.player.heading -= self.player.rotation_speed_deg_s * dt_seconds
-        elif self.turn_right_held:
+        elif right_pressed:
             self.player.heading += self.player.rotation_speed_deg_s * dt_seconds
         elif self.waypoints:
             waypoint = self.waypoints[0]
@@ -271,8 +308,23 @@ class BattleScreen(BaseScreen):
         self.player.x = max(0.0, min(float(map_w), self.player.x))
         self.player.y = max(0.0, min(float(HEIGHT), self.player.y))
 
-        dx = self.player.x - self.cpu.x
-        dy = self.player.y - self.cpu.y
+        player_heading_rad = math.radians(self.player.heading)
+        player_forward_x = math.sin(player_heading_rad)
+        player_forward_y = -math.cos(player_heading_rad)
+        target_x = self.player.x - player_forward_x * self.CPU_TRAIL_DISTANCE_PX
+        target_y = self.player.y - player_forward_y * self.CPU_TRAIL_DISTANCE_PX
+
+        player_dx = self.player.x - self.cpu.x
+        player_dy = self.player.y - self.cpu.y
+        if math.hypot(player_dx, player_dy) < self.MIN_SHIP_SEPARATION_PX * 1.5:
+            side_sign = 1.0 if (player_dx * player_forward_y - player_dy * player_forward_x) >= 0 else -1.0
+            side_x = -player_forward_y * (self.CPU_TRAIL_DISTANCE_PX * 0.5) * side_sign
+            side_y = player_forward_x * (self.CPU_TRAIL_DISTANCE_PX * 0.5) * side_sign
+            target_x = self.player.x + side_x
+            target_y = self.player.y + side_y
+
+        dx = target_x - self.cpu.x
+        dy = target_y - self.cpu.y
         if dx != 0.0 or dy != 0.0:
             target_heading = math.degrees(math.atan2(dx, -dy)) % 360.0
             delta = (target_heading - self.cpu.heading + 540.0) % 360.0 - 180.0
@@ -288,6 +340,7 @@ class BattleScreen(BaseScreen):
         self.cpu.y -= math.cos(cpu_heading_rad) * self.cpu.speed_px_s * dt_seconds
         self.cpu.x = max(0.0, min(float(map_w), self.cpu.x))
         self.cpu.y = max(0.0, min(float(HEIGHT), self.cpu.y))
+        self._enforce_minimum_ship_separation(map_w)
 
         if self.cpu_fire_at_ms is not None and now >= self.cpu_fire_at_ms:
             available = [w for w in self.cpu.weapons if w.can_fire()]

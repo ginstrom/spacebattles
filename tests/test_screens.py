@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import MagicMock, patch
+import math
 import pygame
 from src.screens.battle_screen import BattleScreen
 from src.core.screen_manager import ScreenManager
@@ -34,11 +35,32 @@ class TestScreens(unittest.TestCase):
         event.pos = (x, y)
         return event
 
+    class _PressedState:
+        def __init__(self, pressed_keys):
+            self.pressed_keys = pressed_keys
+
+        def __getitem__(self, key):
+            return self.pressed_keys.get(key, 0)
+
     @patch("pygame.time.get_ticks")
     def test_battle_screen_init_paused(self, mock_get_ticks):
         self.assertTrue(self.screen.is_paused)
         self.assertIn("Paused", self.screen.message)
         self.assertIsNone(self.screen.winner)
+
+    @patch("pygame.key.stop_text_input")
+    def test_battle_screen_stops_text_input_for_ime(self, mock_stop_text_input):
+        with patch("pygame.font.SysFont") as mock_sysfont:
+            mock_font = MagicMock(spec=pygame.font.Font)
+            mock_font.get_linesize.return_value = 20
+            mock_font.size.return_value = (50, 20)
+            mock_text_surf = MagicMock(spec=pygame.Surface)
+            mock_text_surf.get_width.return_value = 50
+            mock_text_surf.get_height.return_value = 20
+            mock_font.render.return_value = mock_text_surf
+            mock_sysfont.return_value = mock_font
+            _ = BattleScreen(self.manager)
+        mock_stop_text_input.assert_called_once()
 
     @patch("pygame.time.get_ticks")
     def test_battle_screen_initial_ship_spatial_state(self, mock_get_ticks):
@@ -367,6 +389,35 @@ class TestScreens(unittest.TestCase):
 
         self.screen.update(16)
         self.assertEqual(self.screen.waypoints, [])
+
+    @patch("pygame.key.get_pressed")
+    @patch("pygame.time.get_ticks")
+    def test_polled_keyboard_input_clears_waypoints(self, mock_get_ticks, mock_get_pressed):
+        mock_get_ticks.return_value = 1000
+        mock_get_pressed.return_value = self._PressedState({pygame.K_a: 1})
+        self.screen.is_paused = False
+        self.screen.waypoints = [(120.0, 120.0)]
+        self.screen.turn_left_held = False
+        self.screen.turn_right_held = False
+
+        self.screen.update(16)
+        self.assertEqual(self.screen.waypoints, [])
+
+    @patch("pygame.time.get_ticks")
+    def test_ships_keep_minimum_separation_when_chasing(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.cpu_fire_at_ms = None
+        self.screen.player.speed_px_s = 0.0
+        self.screen.cpu.speed_px_s = 0.0
+        self.screen.player.x = 600.0
+        self.screen.player.y = 450.0
+        self.screen.cpu.x = 602.0
+        self.screen.cpu.y = 450.0
+
+        self.screen.update(16)
+        distance = math.hypot(self.screen.player.x - self.screen.cpu.x, self.screen.player.y - self.screen.cpu.y)
+        self.assertGreaterEqual(distance + 1e-6, self.screen.MIN_SHIP_SEPARATION_PX)
 
 
 if __name__ == "__main__":

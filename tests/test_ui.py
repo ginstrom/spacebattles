@@ -132,14 +132,27 @@ class TestUI(unittest.TestCase):
     @patch('pygame.draw.polygon')
     def test_draw_enemy_icon(self, mock_polygon):
         from src.ui.elements import draw_enemy_icon
-        draw_enemy_icon(self.mock_surf, 100, 100, 64)
+        with patch("src.ui.elements.get_enemy_icon_surface", return_value=None):
+            draw_enemy_icon(self.mock_surf, 100, 100, 64)
         self.assertEqual(mock_polygon.call_count, 2)
+
+    @patch('pygame.transform.rotate')
+    def test_draw_enemy_icon_uses_sprite_when_available(self, mock_rotate):
+        from src.ui.elements import draw_enemy_icon
+        icon = pygame.Surface((64, 64), pygame.SRCALPHA)
+        mock_rotate.return_value = icon
+        with patch("src.ui.elements.get_enemy_icon_surface", return_value=icon):
+            draw_enemy_icon(self.mock_surf, 100, 100, 64)
+
+        mock_rotate.assert_called_once_with(icon, 180)
+        self.mock_surf.blit.assert_called_once()
 
     @patch('pygame.draw.circle')
     @patch('pygame.draw.line')
     def test_draw_player_icon(self, mock_line, mock_circle):
         from src.ui.elements import draw_player_icon
-        draw_player_icon(self.mock_surf, 100, 100, 64)
+        with patch("src.ui.elements.get_player_icon_surface", return_value=None):
+            draw_player_icon(self.mock_surf, 100, 100, 64)
         self.assertEqual(mock_circle.call_count, 3)
         mock_line.assert_called_once()
 
