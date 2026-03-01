@@ -3,6 +3,7 @@ The main battle screen implementation, managing real-time combat
 flow, player interaction, and CPU logic.
 """
 import logging
+import math
 import pygame
 import random
 from src.core.base_screen import BaseScreen
@@ -48,6 +49,8 @@ class BattleScreen(BaseScreen):
         self.game_time_ms: int = 0
         self.toggle_tab_rect = pygame.Rect(
             WIDTH - TAB_W, HEIGHT // 2 - TAB_H // 2, TAB_W, TAB_H)
+        self.turn_left_held = False
+        self.turn_right_held = False
 
     def _current_map_width(self):
         return WIDTH - PANEL_W if self.panel_expanded else WIDTH
@@ -131,12 +134,27 @@ class BattleScreen(BaseScreen):
                 self.cpu_weapon_detail_toggles.clear()
                 self.cpu_expanded_weapons.clear()
                 self.ui_elements.clear()
+                self.turn_left_held = False
+                self.turn_right_held = False
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
             if self._is_repeat_keydown(event):
                 return
             self._toggle_pause(now)
+            return
+
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+            self.turn_left_held = True
+            return
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+            self.turn_right_held = True
+            return
+        if event.type == pygame.KEYUP and event.key == pygame.K_a:
+            self.turn_left_held = False
+            return
+        if event.type == pygame.KEYUP and event.key == pygame.K_d:
+            self.turn_right_held = False
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -205,6 +223,19 @@ class BattleScreen(BaseScreen):
             w.tick_seconds(dt_seconds)
         for w in self.cpu.weapons:
             w.tick_seconds(dt_seconds)
+
+        if self.turn_left_held:
+            self.player.heading -= self.player.rotation_speed_deg_s * dt_seconds
+        if self.turn_right_held:
+            self.player.heading += self.player.rotation_speed_deg_s * dt_seconds
+        self.player.heading %= 360.0
+
+        heading_rad = math.radians(self.player.heading)
+        self.player.x += math.sin(heading_rad) * self.player.speed_px_s * dt_seconds
+        self.player.y -= math.cos(heading_rad) * self.player.speed_px_s * dt_seconds
+        map_w = self._current_map_width()
+        self.player.x = max(0.0, min(float(map_w), self.player.x))
+        self.player.y = max(0.0, min(float(HEIGHT), self.player.y))
 
         if self.cpu_fire_at_ms is not None and now >= self.cpu_fire_at_ms:
             available = [w for w in self.cpu.weapons if w.can_fire()]

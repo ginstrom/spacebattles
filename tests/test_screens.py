@@ -258,6 +258,52 @@ class TestScreens(unittest.TestCase):
         self.screen.handle_event(repeat_event)
         self.assertFalse(self.screen.is_paused)
 
+    @patch("pygame.time.get_ticks")
+    def test_update_running_moves_player_forward(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        start_x = self.screen.player.x
+        start_y = self.screen.player.y
+        self.screen.update(1000)
+        self.assertEqual(self.screen.player.x, start_x)
+        self.assertEqual(self.screen.player.y, start_y - self.screen.player.speed_px_s)
+
+    @patch("pygame.time.get_ticks")
+    def test_update_running_turns_with_a_and_d(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+
+        a_down = MagicMock()
+        a_down.type = pygame.KEYDOWN
+        a_down.key = pygame.K_a
+        self.screen.handle_event(a_down)
+        self.screen.update(1000)
+        self.assertEqual(self.screen.player.heading, 270.0)
+
+        a_up = MagicMock()
+        a_up.type = pygame.KEYUP
+        a_up.key = pygame.K_a
+        self.screen.handle_event(a_up)
+
+        d_down = MagicMock()
+        d_down.type = pygame.KEYDOWN
+        d_down.key = pygame.K_d
+        self.screen.handle_event(d_down)
+        self.screen.update(1000)
+        self.assertEqual(self.screen.player.heading, 0.0)
+
+    @patch("pygame.time.get_ticks")
+    def test_update_clamps_player_within_map_bounds(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.player.x = -5.0
+        self.screen.player.y = 1.0
+        self.screen.player.heading = 0.0
+        self.screen.update(1000)
+
+        self.assertEqual(self.screen.player.x, 0.0)
+        self.assertEqual(self.screen.player.y, 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
