@@ -77,6 +77,10 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(len(self.screen.cpu.weapons), 3)
         self.assertTrue(all(w.name == "Laser" for w in self.screen.cpu.weapons))
 
+    def test_player_turn_rate_is_faster_than_cpu(self):
+        self.assertLess(self.screen.player.rotation_speed_deg_s, 90.0)
+        self.assertLess(self.screen.cpu.rotation_speed_deg_s, self.screen.player.rotation_speed_deg_s)
+
     def test_ship_spatial_defaults(self):
         ship = Ship("Test", 100, 100, [])
         self.assertEqual(ship.x, 0.0)
@@ -367,7 +371,7 @@ class TestScreens(unittest.TestCase):
         a_down.key = pygame.K_a
         self.screen.handle_event(a_down)
         self.screen.update(1000)
-        self.assertEqual(self.screen.player.heading, 270.0)
+        self.assertEqual(self.screen.player.heading, 360.0 - self.screen.player.rotation_speed_deg_s)
 
         a_up = MagicMock()
         a_up.type = pygame.KEYUP
@@ -404,7 +408,7 @@ class TestScreens(unittest.TestCase):
         self.screen.player.y = self.screen.cpu.y
 
         self.screen.update(1000)
-        self.assertEqual(self.screen.cpu.heading, 90.0)
+        self.assertEqual(self.screen.cpu.heading, self.screen.cpu.rotation_speed_deg_s)
 
     @patch("pygame.time.get_ticks")
     def test_cpu_moves_forward_when_running(self, mock_get_ticks):
@@ -540,7 +544,7 @@ class TestScreens(unittest.TestCase):
         self.screen.waypoints = [(self.screen.player.x + 100.0, self.screen.player.y)]
 
         self.screen.update(1000)
-        self.assertEqual(self.screen.player.heading, 90.0)
+        self.assertEqual(self.screen.player.heading, self.screen.player.rotation_speed_deg_s)
 
     @patch("pygame.time.get_ticks")
     def test_waypoint_removed_when_reached(self, mock_get_ticks):

@@ -231,6 +231,7 @@ class BattleScreen(BaseScreen):
             x=map_center_x,
             y=map_center_y + HEIGHT / 4.0,
             heading=0.0,
+            rotation_speed_deg_s=45.0,
         )
         cpu = Ship(
             name="Computer",
@@ -240,6 +241,7 @@ class BattleScreen(BaseScreen):
             x=map_center_x,
             y=map_center_y - HEIGHT / 4.0,
             heading=180.0,
+            rotation_speed_deg_s=25.0,
         )
         return player, cpu
 
