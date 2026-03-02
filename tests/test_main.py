@@ -3,8 +3,10 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+import pygame
 
 from src.main import configure_logging, build_game
+from src.constants import WIDTH, HEIGHT
 
 
 class TestMainLogging(unittest.TestCase):
@@ -56,6 +58,7 @@ class TestMainLogging(unittest.TestCase):
         self.assertIs(clock, mock_clock)
         self.assertIsNotNone(manager)
         self.assertEqual(mock_set_screen.call_args[0][0].__name__, "MenuScreen")
+        mock_set_mode.assert_called_once_with((WIDTH, HEIGHT), pygame.FULLSCREEN)
 
 
 if __name__ == "__main__":

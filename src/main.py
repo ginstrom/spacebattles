@@ -32,7 +32,7 @@ def build_game() -> tuple[ScreenManager, pygame.time.Clock]:
     pygame.init()
     if hasattr(pygame.key, "stop_text_input"):
         pygame.key.stop_text_input()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
     pygame.display.set_caption("Ship Duel")
     clock = pygame.time.Clock()
 
