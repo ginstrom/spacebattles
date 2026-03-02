@@ -134,13 +134,14 @@ class Map:
         view_x: float = 0.0,
         view_y: float = 0.0,
     ) -> None:
-        clip_rect = pygame.Rect(0, 0, map_w, HEIGHT)
+        map_h = surf.get_height()
+        clip_rect = pygame.Rect(0, 0, map_w, map_h)
         surf.set_clip(clip_rect)
 
         for star_x, star_y, brightness, size in self.stars:
             sx = int(star_x - view_x)
             sy = int(star_y - view_y)
-            if 0 <= sx < map_w and 0 <= sy < HEIGHT:
+            if 0 <= sx < map_w and 0 <= sy < map_h:
                 c = (brightness, brightness, brightness)
                 if size <= 1:
                     surf.set_at((sx, sy), c)
@@ -148,7 +149,7 @@ class Map:
                     pygame.draw.circle(surf, c, (sx, sy), size // 2)
 
         surf.set_clip(None)
-        pygame.draw.line(surf, PANEL_BORDER, (map_w, 0), (map_w, HEIGHT), 1)
+        pygame.draw.line(surf, PANEL_BORDER, (map_w, 0), (map_w, map_h), 1)
         self._draw_ghost_route(surf, player, waypoints or [], view_x, view_y)
 
         # CPU

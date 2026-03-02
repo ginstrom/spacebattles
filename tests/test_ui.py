@@ -12,6 +12,7 @@ class TestUI(unittest.TestCase):
         self.stars = [(10, 10, 255, 1), (20, 20, 200, 3)]
         self.map_obj = Map(self.stars)
         self.mock_surf = MagicMock(spec=pygame.Surface)
+        self.mock_surf.get_height.return_value = HEIGHT
         self.mock_font = MagicMock(spec=pygame.font.Font)
         self.mock_small_font = MagicMock(spec=pygame.font.Font)
 
@@ -117,6 +118,46 @@ class TestUI(unittest.TestCase):
         self.assertEqual(route[0], (400.0, 600.0))
         self.assertEqual(route[-1], (700.0, 600.0))
         self.assertTrue(any(y < 600.0 for _, y in route[1:-1]))
+
+    @patch('src.ui.map.draw_enemy_icon')
+    @patch('src.ui.map.draw_player_icon')
+    @patch('pygame.draw.circle')
+    @patch('pygame.draw.line')
+    def test_map_draw_uses_surface_height_for_clip_and_border(
+        self,
+        mock_line,
+        mock_circle,
+        mock_player_icon,
+        mock_enemy_icon,
+    ):
+        self.mock_surf.get_height.return_value = 1080
+        self.map_obj.draw(
+            self.mock_surf,
+            1000,
+            self.player,
+            self.cpu,
+            True,
+            None,
+            self.mock_font,
+            self.mock_small_font,
+        )
+
+        clip_args = [call.args[0] for call in self.mock_surf.set_clip.call_args_list]
+        self.assertTrue(
+            any(
+                isinstance(c, pygame.Rect)
+                and c.width == 1000
+                and c.height == 1080
+                for c in clip_args
+                if c is not None
+            )
+        )
+        border_calls = [
+            call for call in mock_line.call_args_list
+            if len(call.args) >= 4 and call.args[2] == (1000, 0)
+        ]
+        self.assertTrue(border_calls)
+        self.assertEqual(border_calls[-1].args[3], (1000, 1080))
 
     @patch('src.ui.map.draw_enemy_icon')
     @patch('src.ui.map.draw_player_icon')

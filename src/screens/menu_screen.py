@@ -20,15 +20,23 @@ class MenuScreen(BaseScreen):
 
         self.result_message = result_message
         self.title = "SHIP DUEL" if not result_message else "BATTLE OVER"
+        self.screen_w, self.screen_h = self._screen_size()
 
         self.buttons = {}
         self._setup_buttons()
 
+    def _screen_size(self) -> tuple[int, int]:
+        if hasattr(self.screen_manager, "screen") and hasattr(self.screen_manager.screen, "get_size"):
+            w, h = self.screen_manager.screen.get_size()
+            if isinstance(w, int) and isinstance(h, int) and w > 0 and h > 0:
+                return w, h
+        return WIDTH, HEIGHT
+
     def _setup_buttons(self):
         btn_w, btn_h = 240, 60
-        btn_x = WIDTH // 2 - btn_w // 2
+        btn_x = self.screen_w // 2 - btn_w // 2
 
-        new_game_y = HEIGHT // 2 + 20
+        new_game_y = self.screen_h // 2 + 20
         self.buttons["new_game"] = {
             "rect": pygame.Rect(btn_x, new_game_y, btn_w, btn_h),
             "text": "NEW GAME",
@@ -60,14 +68,15 @@ class MenuScreen(BaseScreen):
 
     def draw(self, screen):
         screen.fill((15, 18, 26))
+        self.screen_w, self.screen_h = self._screen_size()
 
         title_surf = self.big_font.render(self.title, True, WHITE)
-        screen.blit(title_surf, title_surf.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 180)))
+        screen.blit(title_surf, title_surf.get_rect(center=(self.screen_w // 2, self.screen_h // 2 - 180)))
 
         if self.result_message:
             color = (230, 80, 80) if "Computer" in self.result_message else (80, 220, 120)
             res_surf = self.font.render(self.result_message, True, color)
-            screen.blit(res_surf, res_surf.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 80)))
+            screen.blit(res_surf, res_surf.get_rect(center=(self.screen_w // 2, self.screen_h // 2 - 80)))
 
         for btn in self.buttons.values():
             pygame.draw.rect(screen, PANEL_BG, btn["rect"], border_radius=12)

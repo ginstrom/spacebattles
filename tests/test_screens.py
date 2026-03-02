@@ -3,14 +3,16 @@ from unittest.mock import MagicMock, patch
 import math
 import pygame
 from src.screens.battle_screen import BattleScreen
+from src.screens.menu_screen import MenuScreen
 from src.core.screen_manager import ScreenManager
-from src.constants import WIDTH, HEIGHT, PANEL_W
+from src.constants import WIDTH, HEIGHT, PANEL_W, TAB_W, TAB_H
 from src.models.ship import Ship
 
 
 class TestScreens(unittest.TestCase):
     def setUp(self):
         self.mock_surface = MagicMock(spec=pygame.Surface)
+        self.mock_surface.get_size.return_value = (WIDTH, HEIGHT)
         self.manager = ScreenManager(self.mock_surface)
 
         with patch("pygame.font.SysFont") as mock_sysfont:
@@ -27,6 +29,44 @@ class TestScreens(unittest.TestCase):
         self.map_center_x = (WIDTH - PANEL_W) // 2
         self.cpu_y = HEIGHT // 4
         self.player_y = HEIGHT * 3 // 4
+
+    def test_battle_screen_uses_runtime_surface_dimensions(self):
+        dynamic_w, dynamic_h = 1920, 1080
+        dynamic_surface = MagicMock(spec=pygame.Surface)
+        dynamic_surface.get_size.return_value = (dynamic_w, dynamic_h)
+        manager = ScreenManager(dynamic_surface)
+
+        with patch("pygame.font.SysFont") as mock_sysfont:
+            mock_font = MagicMock(spec=pygame.font.Font)
+            mock_font.get_linesize.return_value = 20
+            mock_font.size.return_value = (50, 20)
+            mock_text_surf = MagicMock(spec=pygame.Surface)
+            mock_text_surf.get_width.return_value = 50
+            mock_text_surf.get_height.return_value = 20
+            mock_font.render.return_value = mock_text_surf
+            mock_sysfont.return_value = mock_font
+            screen = BattleScreen(manager)
+
+        self.assertEqual(screen.map_world_w, int((dynamic_w - PANEL_W) * 3))
+        self.assertEqual(screen.map_world_h, int(dynamic_h * 3))
+        self.assertEqual(
+            screen.toggle_tab_rect,
+            pygame.Rect(dynamic_w - TAB_W, dynamic_h // 2 - TAB_H // 2, TAB_W, TAB_H),
+        )
+
+    def test_menu_screen_uses_runtime_surface_dimensions_for_button_layout(self):
+        dynamic_w, dynamic_h = 1920, 1080
+        dynamic_surface = MagicMock(spec=pygame.Surface)
+        dynamic_surface.get_size.return_value = (dynamic_w, dynamic_h)
+        manager = ScreenManager(dynamic_surface)
+
+        with patch("pygame.font.SysFont") as mock_sysfont:
+            mock_sysfont.return_value = MagicMock(spec=pygame.font.Font)
+            screen = MenuScreen(manager)
+
+        new_game_rect = screen.buttons["new_game"]["rect"]
+        self.assertEqual(new_game_rect.centerx, dynamic_w // 2)
+        self.assertEqual(new_game_rect.y, dynamic_h // 2 + 20)
 
     def _mouse_event(self, x=125, y=125):
         event = MagicMock()

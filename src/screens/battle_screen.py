@@ -23,15 +23,16 @@ class BattleScreen(BaseScreen):
         super().__init__(screen_manager)
         if hasattr(pygame.key, "stop_text_input"):
             pygame.key.stop_text_input()
+        self.screen_w, self.screen_h = self._screen_size()
         self.font = pygame.font.SysFont(None, 28)
         self.big_font = pygame.font.SysFont(None, 44)
         self.small_font = pygame.font.SysFont(None, 22)
 
         self.available_weapons = Weapon.load_weapons("data/weapons.yaml")
-        self.map_world_w = int((WIDTH - PANEL_W) * 3)
-        self.map_world_h = int(HEIGHT * 3)
-        self.map_view_x = (self.map_world_w - (WIDTH - PANEL_W)) / 2.0
-        self.map_view_y = (self.map_world_h - HEIGHT) / 2.0
+        self.map_world_w = int((self.screen_w - PANEL_W) * 3)
+        self.map_world_h = int(self.screen_h * 3)
+        self.map_view_x = (self.map_world_w - (self.screen_w - PANEL_W)) / 2.0
+        self.map_view_y = (self.map_world_h - self.screen_h) / 2.0
         self.player, self.cpu = self._make_game()
         star_count = max(150, (self.map_world_w * self.map_world_h) // 10000)
         self.map = Map(make_stars(star_count, self.map_world_w, self.map_world_h))
@@ -59,7 +60,7 @@ class BattleScreen(BaseScreen):
         self.attack_animation = None
         self.game_time_ms: int = 0
         self.toggle_tab_rect = pygame.Rect(
-            WIDTH - TAB_W, HEIGHT // 2 - TAB_H // 2, TAB_W, TAB_H)
+            self.screen_w - TAB_W, self.screen_h // 2 - TAB_H // 2, TAB_W, TAB_H)
         self.turn_left_held = False
         self.turn_right_held = False
         self.waypoints: list[tuple[float, float]] = []
@@ -70,8 +71,15 @@ class BattleScreen(BaseScreen):
         self.map_dragging = False
         self.map_drag_last_pos: tuple[int, int] | None = None
 
+    def _screen_size(self) -> tuple[int, int]:
+        if hasattr(self.screen_manager, "screen") and hasattr(self.screen_manager.screen, "get_size"):
+            w, h = self.screen_manager.screen.get_size()
+            if isinstance(w, int) and isinstance(h, int) and w > 0 and h > 0:
+                return w, h
+        return WIDTH, HEIGHT
+
     def _current_map_width(self):
-        return WIDTH - PANEL_W if self.panel_expanded else WIDTH
+        return self.screen_w - PANEL_W if self.panel_expanded else self.screen_w
 
     @staticmethod
     def _is_key_physically_pressed(key_code: int) -> bool:
@@ -89,7 +97,7 @@ class BattleScreen(BaseScreen):
 
     def _is_map_point(self, pos):
         x, y = pos
-        return 0 <= x <= self._current_map_width() and 0 <= y <= HEIGHT
+        return 0 <= x <= self._current_map_width() and 0 <= y <= self.screen_h
 
     def _screen_to_world(self, pos: tuple[int, int]) -> tuple[float, float]:
         return float(pos[0]) + self.map_view_x, float(pos[1]) + self.map_view_y
@@ -97,7 +105,7 @@ class BattleScreen(BaseScreen):
     def _clamp_map_view(self) -> None:
         map_w = self._current_map_width()
         max_x = max(0.0, float(self.map_world_w - map_w))
-        max_y = max(0.0, float(self.map_world_h - HEIGHT))
+        max_y = max(0.0, float(self.map_world_h - self.screen_h))
         self.map_view_x = max(0.0, min(max_x, self.map_view_x))
         self.map_view_y = max(0.0, min(max_y, self.map_view_y))
 
@@ -229,7 +237,7 @@ class BattleScreen(BaseScreen):
             hp=750,
             weapons=p_weapons,
             x=map_center_x,
-            y=map_center_y + HEIGHT / 4.0,
+            y=map_center_y + self.screen_h / 4.0,
             heading=0.0,
             rotation_speed_deg_s=45.0,
         )
@@ -239,7 +247,7 @@ class BattleScreen(BaseScreen):
             hp=500,
             weapons=c_weapons,
             x=map_center_x,
-            y=map_center_y - HEIGHT / 4.0,
+            y=map_center_y - self.screen_h / 4.0,
             heading=180.0,
             rotation_speed_deg_s=25.0,
         )
@@ -498,9 +506,10 @@ class BattleScreen(BaseScreen):
             self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
 
     def draw(self, screen):
+        self.screen_w, self.screen_h = self._screen_size()
         screen.fill(BG)
-        panel_x = WIDTH - PANEL_W if self.panel_expanded else WIDTH
-        map_w = WIDTH - PANEL_W if self.panel_expanded else WIDTH
+        panel_x = self.screen_w - PANEL_W if self.panel_expanded else self.screen_w
+        map_w = self.screen_w - PANEL_W if self.panel_expanded else self.screen_w
 
         self.map.draw(
             screen,
@@ -558,10 +567,10 @@ class BattleScreen(BaseScreen):
             for bx in (0, map_w):
                 t = (bx - sx) / dx
                 y = sy + t * dy
-                if t > 1.0 and 0 <= y <= HEIGHT:
+                if t > 1.0 and 0 <= y <= self.screen_h:
                     candidates.append((t, (int(round(bx)), int(round(y)))))
         if dy != 0:
-            for by in (0, HEIGHT):
+            for by in (0, self.screen_h):
                 t = (by - sy) / dy
                 x = sx + t * dx
                 if t > 1.0 and 0 <= x <= map_w:
@@ -595,7 +604,7 @@ class BattleScreen(BaseScreen):
         )
 
         old_clip = screen.get_clip()
-        screen.set_clip(pygame.Rect(0, 0, map_w, HEIGHT))
+        screen.set_clip(pygame.Rect(0, 0, map_w, self.screen_h))
         pygame.draw.line(
             screen,
             self.attack_animation["color"],
@@ -611,14 +620,14 @@ class BattleScreen(BaseScreen):
         screen.set_clip(old_clip)
 
     def _draw_side_panel(self, surf, panel_x):
-        panel_rect = pygame.Rect(panel_x, 0, PANEL_W, HEIGHT)
+        panel_rect = pygame.Rect(panel_x, 0, PANEL_W, self.screen_h)
         pygame.draw.rect(surf, PANEL_BG, panel_rect)
         pygame.draw.line(surf, PANEL_BORDER, (panel_x, 0),
-                         (panel_x, HEIGHT), 1)
+                         (panel_x, self.screen_h), 1)
 
         inner_x = panel_x + PANEL_PAD
         inner_w = PANEL_W - 2 * PANEL_PAD
-        remaining_h = HEIGHT - 2 * PANEL_PAD - MSG_H
+        remaining_h = self.screen_h - 2 * PANEL_PAD - MSG_H
         card_h = remaining_h // 2 - PANEL_PAD // 2
 
         cpu_card_rect = pygame.Rect(inner_x, PANEL_PAD, inner_w, card_h)
@@ -669,19 +678,19 @@ class BattleScreen(BaseScreen):
 
     def _draw_collapsed_bar(self, screen):
         bar_h = 40
-        overlay = pygame.Surface((WIDTH, bar_h), pygame.SRCALPHA)
+        overlay = pygame.Surface((self.screen_w, bar_h), pygame.SRCALPHA)
         overlay.fill((10, 12, 22, 200))
-        screen.blit(overlay, (0, HEIGHT - bar_h))
+        screen.blit(overlay, (0, self.screen_h - bar_h))
         msg_surf = self.small_font.render(self.message, True, WHITE)
         screen.blit(msg_surf, msg_surf.get_rect(
-            center=(WIDTH // 2, HEIGHT - bar_h // 2)))
+            center=(self.screen_w // 2, self.screen_h - bar_h // 2)))
 
     def _draw_toggle_tab(self, surf, panel_x):
         if self.panel_expanded:
             tab_x = panel_x - TAB_W + 4
         else:
-            tab_x = WIDTH - TAB_W
-        tab_y = HEIGHT // 2 - TAB_H // 2
+            tab_x = self.screen_w - TAB_W
+        tab_y = self.screen_h // 2 - TAB_H // 2
         tab_rect = pygame.Rect(tab_x, tab_y, TAB_W, TAB_H)
         pygame.draw.rect(surf, PANEL_BG, tab_rect, border_radius=8)
         pygame.draw.rect(surf, PANEL_BORDER, tab_rect, 2, border_radius=8)
@@ -691,10 +700,10 @@ class BattleScreen(BaseScreen):
         return tab_rect
 
     def _draw_winner_overlay(self, screen):
-        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay = pygame.Surface((self.screen_w, self.screen_h), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 150))
         screen.blit(overlay, (0, 0))
         wtxt = self.big_font.render(f"{self.winner} wins!", True, WHITE)
         rtxt = self.font.render("Press R to restart", True, WHITE)
-        screen.blit(wtxt, wtxt.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 20)))
-        screen.blit(rtxt, rtxt.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 25)))
+        screen.blit(wtxt, wtxt.get_rect(center=(self.screen_w // 2, self.screen_h // 2 - 20)))
+        screen.blit(rtxt, rtxt.get_rect(center=(self.screen_w // 2, self.screen_h // 2 + 25)))
