@@ -126,6 +126,31 @@ class TestScreens(unittest.TestCase):
             self.assertEqual(self.screen.attack_animation["target"], (210.0, 123.0))
 
     @patch("pygame.time.get_ticks")
+    def test_handle_event_weapon_click_when_running_queues_if_on_cooldown(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.weapon_buttons = {0: pygame.Rect(100, 100, 50, 50)}
+        self.screen.player.weapons[0].current_cooldown_seconds = 2.0
+
+        with patch("src.systems.combat.CombatSystem.execute_attack") as mock_attack:
+            self.screen.handle_event(self._mouse_event())
+            mock_attack.assert_not_called()
+            self.assertEqual(self.screen.queued_player_attacks, [0])
+
+    @patch("pygame.time.get_ticks")
+    def test_handle_event_weapon_click_when_running_unqueues_if_already_queued(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.weapon_buttons = {0: pygame.Rect(100, 100, 50, 50)}
+        self.screen.player.weapons[0].current_cooldown_seconds = 2.0
+        self.screen.queued_player_attacks = [0]
+
+        with patch("src.systems.combat.CombatSystem.execute_attack") as mock_attack:
+            self.screen.handle_event(self._mouse_event())
+            mock_attack.assert_not_called()
+            self.assertEqual(self.screen.queued_player_attacks, [])
+
+    @patch("pygame.time.get_ticks")
     def test_handle_event_weapon_click_queues_while_paused(self, mock_get_ticks):
         mock_get_ticks.return_value = 1000
         self.screen.is_paused = True

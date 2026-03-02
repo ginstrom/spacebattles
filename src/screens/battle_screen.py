@@ -364,7 +364,12 @@ class BattleScreen(BaseScreen):
                 if not self.is_paused:
                     for idx, btn_rect in self.weapon_buttons.items():
                         if btn_rect.collidepoint(pos):
-                            self._fire_player_weapon(idx, now)
+                            fired = self._fire_player_weapon(idx, now)
+                            if not fired:
+                                if idx in self.queued_player_attacks:
+                                    self.queued_player_attacks.remove(idx)
+                                else:
+                                    self.queued_player_attacks.append(idx)
                             break
                 else:
                     for idx, btn_rect in self.weapon_buttons.items():
