@@ -6,6 +6,7 @@ import logging
 import math
 import pygame
 import random
+import yaml
 from src.core.base_screen import BaseScreen
 from src.constants import *
 from src.models.ship import Ship
@@ -29,6 +30,7 @@ class BattleScreen(BaseScreen):
         self.small_font = pygame.font.SysFont(None, 22)
 
         self.available_weapons = Weapon.load_weapons("data/weapons.yaml")
+        self.ship_configs = self._load_ship_configs("data/ships.yaml")
         self.map_world_w = int((self.screen_w - PANEL_W) * 3)
         self.map_world_h = int(self.screen_h * 3)
         self.map_view_x = (self.map_world_w - (self.screen_w - PANEL_W)) / 2.0
@@ -195,6 +197,31 @@ class BattleScreen(BaseScreen):
             self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
             self.message = "Battle running. Press Space to pause."
 
+    @staticmethod
+    def _load_ship_configs(file_path: str) -> dict[str, dict]:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        return data
+
+    def _build_weapons_from_config(self, config: dict) -> list[Weapon]:
+        result: list[Weapon] = []
+        for item in config.get("weapons", []):
+            weapon_name = item["name"]
+            count = int(item.get("count", 1))
+            template = self.available_weapons[weapon_name]
+            for _ in range(max(0, count)):
+                result.append(
+                    Weapon(
+                        template.name,
+                        template.damage_range,
+                        template.cooldown,
+                        template.hit_chance,
+                        0,
+                        template.charges,
+                    )
+                )
+        return result
+
     def _fire_player_weapon(self, weapon_idx: int, now_ms: int) -> bool:
         if not (0 <= weapon_idx < len(self.player.weapons)):
             return False
@@ -241,51 +268,30 @@ class BattleScreen(BaseScreen):
         return False
 
     def _make_game(self):
-        # Create unique instances for each ship
-        # To match the "From: [laser x 2] [ion beam x 1]" example:
         map_center_x = self.map_world_w / 2.0
         map_center_y = self.map_world_h / 2.0
-        p_weapons = []
-        laser = self.available_weapons["Laser"]
-        ion = self.available_weapons["Ion Beam"]
-
-        # Two lasers
-        p_weapons.append(Weapon(laser.name, laser.damage_range,
-                         laser.cooldown, laser.hit_chance, 0, laser.charges))
-        p_weapons.append(Weapon(laser.name, laser.damage_range,
-                         laser.cooldown, laser.hit_chance, 0, laser.charges))
-        # One ion beam
-        p_weapons.append(Weapon(ion.name, ion.damage_range,
-                         ion.cooldown, ion.hit_chance, 0, ion.charges))
-
-        c_weapons = []
-        # Computer gets three lasers
-        c_weapons.append(Weapon(laser.name, laser.damage_range,
-                         laser.cooldown, laser.hit_chance, 0, laser.charges))
-        c_weapons.append(Weapon(laser.name, laser.damage_range,
-                         laser.cooldown, laser.hit_chance, 0, laser.charges))
-        c_weapons.append(Weapon(laser.name, laser.damage_range,
-                         laser.cooldown, laser.hit_chance, 0, laser.charges))
+        player_cfg = self.ship_configs["player"]
+        computer_cfg = self.ship_configs["computer"]
 
         player = Ship(
-            name="Player",
-            max_hp=750,
-            hp=750,
-            weapons=p_weapons,
+            name=player_cfg["name"],
+            max_hp=int(player_cfg["max_hp"]),
+            hp=int(player_cfg["max_hp"]),
+            weapons=self._build_weapons_from_config(player_cfg),
             x=map_center_x,
             y=map_center_y + self.screen_h / 4.0,
             heading=0.0,
-            rotation_speed_deg_s=45.0,
+            rotation_speed_deg_s=float(player_cfg["rotation_speed_deg_s"]),
         )
         cpu = Ship(
-            name="Computer",
-            max_hp=500,
-            hp=500,
-            weapons=c_weapons,
+            name=computer_cfg["name"],
+            max_hp=int(computer_cfg["max_hp"]),
+            hp=int(computer_cfg["max_hp"]),
+            weapons=self._build_weapons_from_config(computer_cfg),
             x=map_center_x,
             y=map_center_y - self.screen_h / 4.0,
             heading=180.0,
-            rotation_speed_deg_s=25.0,
+            rotation_speed_deg_s=float(computer_cfg["rotation_speed_deg_s"]),
         )
         return player, cpu
 

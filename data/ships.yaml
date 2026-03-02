@@ -1,0 +1,17 @@
+player:
+  name: Alliance cruiser
+  max_hp: 750
+  rotation_speed_deg_s: 45.0
+  weapons:
+    - name: Laser
+      count: 2
+    - name: Ion Beam
+      count: 1
+
+computer:
+  name: Gorlach cruiser
+  max_hp: 500
+  rotation_speed_deg_s: 30.0
+  weapons:
+    - name: Laser
+      count: 3

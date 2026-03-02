@@ -117,9 +117,22 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(len(self.screen.cpu.weapons), 3)
         self.assertTrue(all(w.name == "Laser" for w in self.screen.cpu.weapons))
 
+    def test_ship_profiles_are_loaded_from_config(self):
+        self.assertEqual(self.screen.player.name, "Alliance cruiser")
+        self.assertEqual(self.screen.player.max_hp, 750)
+        self.assertEqual(self.screen.player.hp, 750)
+        self.assertEqual(self.screen.cpu.name, "Gorlach cruiser")
+        self.assertEqual(self.screen.cpu.max_hp, 500)
+        self.assertEqual(self.screen.cpu.hp, 500)
+
     def test_player_turn_rate_is_faster_than_cpu(self):
         self.assertLess(self.screen.player.rotation_speed_deg_s, 90.0)
         self.assertLess(self.screen.cpu.rotation_speed_deg_s, self.screen.player.rotation_speed_deg_s)
+        self.assertAlmostEqual(
+            self.screen.player.rotation_speed_deg_s / self.screen.cpu.rotation_speed_deg_s,
+            1.5,
+            places=2,
+        )
 
     def test_ship_spatial_defaults(self):
         ship = Ship("Test", 100, 100, [])
