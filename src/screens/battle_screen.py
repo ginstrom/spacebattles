@@ -70,6 +70,7 @@ class BattleScreen(BaseScreen):
         self.cpu_follow_heading_apply_at_ms = 0
         self.map_dragging = False
         self.map_drag_last_pos: tuple[int, int] | None = None
+        self.pause_menu_visible = False
 
     def _screen_size(self) -> tuple[int, int]:
         if hasattr(self.screen_manager, "screen") and hasattr(self.screen_manager.screen, "get_size"):
@@ -158,6 +159,41 @@ class BattleScreen(BaseScreen):
         result_message = "Computer wins!" if winner == "Computer" else "Player wins!"
         from src.screens.menu_screen import MenuScreen
         self.screen_manager.set_screen(MenuScreen, result_message=result_message)
+
+    def _pause_menu_buttons(self) -> dict[str, dict[str, pygame.Rect | str | tuple[int, int, int]]]:
+        menu_w = 300
+        menu_h = 180
+        menu_x = self.screen_w // 2 - menu_w // 2
+        menu_y = self.screen_h // 2 - menu_h // 2
+        btn_w = 220
+        btn_h = 48
+        btn_x = self.screen_w // 2 - btn_w // 2
+        resume_y = menu_y + 50
+        quit_y = resume_y + btn_h + 16
+        return {
+            "menu_rect": {"rect": pygame.Rect(menu_x, menu_y, menu_w, menu_h)},
+            "resume": {
+                "rect": pygame.Rect(btn_x, resume_y, btn_w, btn_h),
+                "text": "RESUME",
+                "color": BLUE,
+            },
+            "quit": {
+                "rect": pygame.Rect(btn_x, quit_y, btn_w, btn_h),
+                "text": "QUIT",
+                "color": RED,
+            },
+        }
+
+    def _set_pause_menu_visible(self, visible: bool, now: int) -> None:
+        self.pause_menu_visible = visible
+        if visible:
+            self.is_paused = True
+            self.cpu_fire_at_ms = None
+            self.message = "Paused. Select RESUME or QUIT."
+        else:
+            self.is_paused = False
+            self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
+            self.message = "Battle running. Press Space to pause."
 
     def _fire_player_weapon(self, weapon_idx: int, now_ms: int) -> bool:
         if not (0 <= weapon_idx < len(self.player.weapons)):
@@ -280,12 +316,21 @@ class BattleScreen(BaseScreen):
                 self.cpu_follow_heading_apply_at_ms = 0
                 self.map_dragging = False
                 self.map_drag_last_pos = None
+                self.pause_menu_visible = False
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            if self.pause_menu_visible:
+                return
             if self._is_repeat_keydown(event):
                 return
             self._toggle_pause(now)
+            return
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            if self.pause_menu_visible:
+                self._set_pause_menu_visible(False, now)
+            else:
+                self._set_pause_menu_visible(True, now)
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
@@ -314,6 +359,15 @@ class BattleScreen(BaseScreen):
                 self.map_view_y -= float(dy)
                 self._clamp_map_view()
             self.map_drag_last_pos = event.pos
+            return
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.pause_menu_visible:
+            buttons = self._pause_menu_buttons()
+            if buttons["resume"]["rect"].collidepoint(event.pos):
+                self._set_pause_menu_visible(False, now)
+            elif buttons["quit"]["rect"].collidepoint(event.pos):
+                from src.screens.menu_screen import MenuScreen
+                self.screen_manager.set_screen(MenuScreen)
             return
 
         if (
@@ -533,6 +587,9 @@ class BattleScreen(BaseScreen):
 
         self.toggle_tab_rect = self._draw_toggle_tab(screen, panel_x)
 
+        if self.pause_menu_visible:
+            self._draw_pause_menu_overlay(screen)
+
         if self.winner is not None:
             self._draw_winner_overlay(screen)
 
@@ -707,3 +764,24 @@ class BattleScreen(BaseScreen):
         rtxt = self.font.render("Press R to restart", True, WHITE)
         screen.blit(wtxt, wtxt.get_rect(center=(self.screen_w // 2, self.screen_h // 2 - 20)))
         screen.blit(rtxt, rtxt.get_rect(center=(self.screen_w // 2, self.screen_h // 2 + 25)))
+
+    def _draw_pause_menu_overlay(self, screen):
+        overlay = pygame.Surface((self.screen_w, self.screen_h), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 120))
+        screen.blit(overlay, (0, 0))
+
+        buttons = self._pause_menu_buttons()
+        menu_rect = buttons["menu_rect"]["rect"]
+        pygame.draw.rect(screen, PANEL_BG, menu_rect, border_radius=12)
+        pygame.draw.rect(screen, PANEL_BORDER, menu_rect, 2, border_radius=12)
+
+        title = self.font.render("PAUSED", True, WHITE)
+        screen.blit(title, title.get_rect(center=(self.screen_w // 2, menu_rect.y + 26)))
+
+        for key in ("resume", "quit"):
+            btn = buttons[key]
+            btn_rect = btn["rect"]
+            pygame.draw.rect(screen, PANEL_BG, btn_rect, border_radius=10)
+            pygame.draw.rect(screen, btn["color"], btn_rect, 2, border_radius=10)
+            txt = self.small_font.render(btn["text"], True, WHITE)
+            screen.blit(txt, txt.get_rect(center=btn_rect.center))

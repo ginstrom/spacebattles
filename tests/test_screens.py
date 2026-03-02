@@ -146,6 +146,46 @@ class TestScreens(unittest.TestCase):
         self.assertIsNone(self.screen.cpu_fire_at_ms)
 
     @patch("pygame.time.get_ticks")
+    def test_escape_opens_pause_menu_overlay_and_pauses(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        event = MagicMock()
+        event.type = pygame.KEYDOWN
+        event.key = pygame.K_ESCAPE
+
+        self.screen.handle_event(event)
+        self.assertTrue(self.screen.is_paused)
+        self.assertTrue(self.screen.pause_menu_visible)
+        self.assertIsNone(self.screen.cpu_fire_at_ms)
+
+    @patch("pygame.time.get_ticks")
+    def test_pause_menu_resume_button_unpauses(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.pause_menu_visible = True
+        self.screen.is_paused = True
+        buttons = self.screen._pause_menu_buttons()
+        resume_rect = buttons["resume"]["rect"]
+        event = self._mouse_event(resume_rect.centerx, resume_rect.centery)
+
+        self.screen.handle_event(event)
+        self.assertFalse(self.screen.pause_menu_visible)
+        self.assertFalse(self.screen.is_paused)
+        self.assertEqual(self.screen.cpu_fire_at_ms, 1000 + self.screen.CPU_DELAY_MS)
+
+    @patch("pygame.time.get_ticks")
+    def test_pause_menu_quit_button_returns_to_menu(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.pause_menu_visible = True
+        self.screen.is_paused = True
+        buttons = self.screen._pause_menu_buttons()
+        quit_rect = buttons["quit"]["rect"]
+        event = self._mouse_event(quit_rect.centerx, quit_rect.centery)
+
+        with patch.object(self.manager, "set_screen") as mock_set_screen:
+            self.screen.handle_event(event)
+            mock_set_screen.assert_called_once()
+
+    @patch("pygame.time.get_ticks")
     def test_handle_event_weapon_click_ignored_while_paused(self, mock_get_ticks):
         mock_get_ticks.return_value = 1000
         self.screen.weapon_buttons = {0: pygame.Rect(100, 100, 50, 50)}
