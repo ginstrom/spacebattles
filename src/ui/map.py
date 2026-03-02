@@ -19,6 +19,58 @@ class Map:
     def __init__(self, stars: list[tuple[int, int, int, int]]):
         self.stars = stars
 
+    @staticmethod
+    def _predict_turn_limited_route(
+        player: Ship,
+        waypoints: list[tuple[float, float]],
+    ) -> list[tuple[float, float]]:
+        if not waypoints:
+            return []
+
+        x = float(player.x)
+        y = float(player.y)
+        heading = player.heading % 360.0
+        route: list[tuple[float, float]] = [(x, y)]
+
+        dt_seconds = 0.12
+        speed_step = max(1.0, float(player.speed_px_s) * dt_seconds)
+        max_turn_step = max(0.1, float(player.rotation_speed_deg_s) * dt_seconds)
+        reach_distance = max(10.0, speed_step * 1.5)
+        max_iterations = 5000
+
+        waypoint_idx = 0
+        iterations = 0
+        while waypoint_idx < len(waypoints) and iterations < max_iterations:
+            iterations += 1
+            tx, ty = waypoints[waypoint_idx]
+            dx = tx - x
+            dy = ty - y
+            distance = math.hypot(dx, dy)
+
+            if distance <= reach_distance:
+                x = float(tx)
+                y = float(ty)
+                route.append((x, y))
+                waypoint_idx += 1
+                continue
+
+            target_heading = math.degrees(math.atan2(dx, -dy)) % 360.0
+            delta = (target_heading - heading + 540.0) % 360.0 - 180.0
+            if delta > max_turn_step:
+                delta = max_turn_step
+            elif delta < -max_turn_step:
+                delta = -max_turn_step
+            heading = (heading + delta) % 360.0
+
+            heading_rad = math.radians(heading)
+            x += math.sin(heading_rad) * speed_step
+            y -= math.cos(heading_rad) * speed_step
+            route.append((x, y))
+
+        if route[-1] != tuple(waypoints[-1]):
+            route.append((float(waypoints[-1][0]), float(waypoints[-1][1])))
+        return route
+
     def _draw_ghost_route(
         self,
         surf: pygame.Surface,
@@ -31,7 +83,9 @@ class Map:
             return
 
         route_color = (110, 180, 255)
-        points = [(float(player.x), float(player.y)), *waypoints]
+        points = self._predict_turn_limited_route(player, waypoints)
+        if len(points) < 2:
+            return
 
         for idx in range(len(points) - 1):
             x1, y1 = points[idx]

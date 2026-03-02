@@ -97,6 +97,27 @@ class TestUI(unittest.TestCase):
         self.assertGreaterEqual(mock_player_icon.call_count, 2)
         self.assertTrue(mock_line.called)
 
+    def test_predict_turn_limited_route_accounts_for_turn_rate(self):
+        player = Ship(
+            "Player",
+            100,
+            100,
+            [Weapon("Laser", (10, 20), 1, 100, 0, 5)],
+            x=400.0,
+            y=600.0,
+            heading=0.0,
+            speed_px_s=100.0,
+            rotation_speed_deg_s=20.0,
+        )
+        waypoints = [(700.0, 600.0)]
+
+        route = self.map_obj._predict_turn_limited_route(player, waypoints)
+
+        self.assertGreater(len(route), 2)
+        self.assertEqual(route[0], (400.0, 600.0))
+        self.assertEqual(route[-1], (700.0, 600.0))
+        self.assertTrue(any(y < 600.0 for _, y in route[1:-1]))
+
     @patch('src.ui.map.draw_enemy_icon')
     @patch('src.ui.map.draw_player_icon')
     @patch('pygame.draw.circle')
