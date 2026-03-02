@@ -215,7 +215,11 @@ class BattleScreen(BaseScreen):
                          ion.cooldown, ion.hit_chance, 0, ion.charges))
 
         c_weapons = []
-        # Computer only gets Laser
+        # Computer gets three lasers
+        c_weapons.append(Weapon(laser.name, laser.damage_range,
+                         laser.cooldown, laser.hit_chance, 0, laser.charges))
+        c_weapons.append(Weapon(laser.name, laser.damage_range,
+                         laser.cooldown, laser.hit_chance, 0, laser.charges))
         c_weapons.append(Weapon(laser.name, laser.damage_range,
                          laser.cooldown, laser.hit_chance, 0, laser.charges))
 

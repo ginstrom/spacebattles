@@ -28,6 +28,8 @@ class TestUI(unittest.TestCase):
                            Weapon("Laser", (10, 20), 1, 100, 0, 5)],
                            x=400.0, y=HEIGHT * 3 / 4, heading=0.0)
         self.cpu = Ship("CPU", 100, 100, [
+                        Weapon("Laser", (10, 20), 1, 100, 0, 5),
+                        Weapon("Laser", (10, 20), 1, 100, 0, 5),
                         Weapon("Laser", (10, 20), 1, 100, 0, 5)],
                         x=400.0, y=HEIGHT / 4, heading=180.0)
 
@@ -206,8 +208,8 @@ class TestUI(unittest.TestCase):
             detail_toggles,
             expanded)
 
-        self.assertEqual(len(weapon_buttons), 1)  # CPU has 1 weapon
-        self.assertEqual(len(detail_toggles), 1)
+        self.assertEqual(len(weapon_buttons), 3)  # CPU has 3 weapons
+        self.assertEqual(len(detail_toggles), 3)
         self.assertEqual(len(ui_elements), 0)  # CPU has no "End Turn" button
         self.assertTrue(mock_rect.called)
 

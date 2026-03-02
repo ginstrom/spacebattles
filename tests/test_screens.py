@@ -73,6 +73,10 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(self.screen.cpu.y, map_center_y - HEIGHT / 4.0)
         self.assertEqual(self.screen.cpu.heading, 180.0)
 
+    def test_cpu_starts_with_three_lasers(self):
+        self.assertEqual(len(self.screen.cpu.weapons), 3)
+        self.assertTrue(all(w.name == "Laser" for w in self.screen.cpu.weapons))
+
     def test_ship_spatial_defaults(self):
         ship = Ship("Test", 100, 100, [])
         self.assertEqual(ship.x, 0.0)
