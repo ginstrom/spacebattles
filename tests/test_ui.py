@@ -70,6 +70,8 @@ class TestUI(unittest.TestCase):
         # Verify icons were drawn
         mock_enemy_icon.assert_called_once()
         mock_player_icon.assert_called_once()
+        self.assertEqual(mock_enemy_icon.call_args[0][4], self.cpu.heading)
+        self.assertEqual(mock_player_icon.call_args[0][4], self.player.heading)
 
     @patch('src.ui.map.draw_player_icon')
     @patch('pygame.draw.line')
@@ -131,8 +133,18 @@ class TestUI(unittest.TestCase):
         with patch("src.ui.elements.get_enemy_icon_surface", return_value=icon):
             draw_enemy_icon(self.mock_surf, 100, 100, 64)
 
-        mock_rotate.assert_called_once_with(icon, 180)
+        mock_rotate.assert_called_once_with(icon, -0.0)
         self.mock_surf.blit.assert_called_once()
+
+    @patch('pygame.transform.rotate')
+    def test_draw_enemy_icon_applies_heading_rotation(self, mock_rotate):
+        from src.ui.elements import draw_enemy_icon
+        icon = pygame.Surface((64, 64), pygame.SRCALPHA)
+        mock_rotate.return_value = icon
+        with patch("src.ui.elements.get_enemy_icon_surface", return_value=icon):
+            draw_enemy_icon(self.mock_surf, 100, 100, 64, heading_deg=90.0)
+
+        mock_rotate.assert_called_once_with(icon, -90.0)
 
     @patch('pygame.draw.circle')
     @patch('pygame.draw.line')

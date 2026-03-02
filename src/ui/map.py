@@ -66,13 +66,6 @@ class Map:
             ),
         )
 
-        heading_rad = math.radians(player.heading)
-        px = player.x - view_x
-        py = player.y - view_y
-        hx = int(px + math.sin(heading_rad) * 36.0)
-        hy = int(py - math.cos(heading_rad) * 36.0)
-        pygame.draw.line(surf, route_color, (int(px), int(py)), (hx, hy), 2)
-
     def draw(
         self,
         surf: pygame.Surface,
@@ -111,7 +104,7 @@ class Map:
         if is_running and winner is None:
             pygame.draw.circle(surf, BLUE, (cpu_cx, cpu_cy),
                                icon_size // 2 + 10, 2)
-        draw_enemy_icon(surf, cpu_cx, cpu_cy, icon_size)
+        draw_enemy_icon(surf, cpu_cx, cpu_cy, icon_size, cpu.heading)
         name_surf = small_font.render(cpu.name, True, WHITE)
         surf.blit(name_surf, name_surf.get_rect(
             centerx=cpu_cx, top=cpu_cy + icon_size // 2 + 12))
@@ -122,7 +115,7 @@ class Map:
         if is_running and winner is None:
             pygame.draw.circle(
                 surf, BLUE, (player_cx, player_cy), icon_size // 2 + 10, 2)
-        draw_player_icon(surf, player_cx, player_cy, icon_size)
+        draw_player_icon(surf, player_cx, player_cy, icon_size, player.heading)
         p_name_surf = small_font.render(player.name, True, WHITE)
         p_name_rect = p_name_surf.get_rect(
             centerx=player_cx, bottom=player_cy - icon_size // 2 - 12)

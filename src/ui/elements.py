@@ -2,6 +2,7 @@
 Reusable UI components for the game, including ship icons,
 info cards, and health bars.
 """
+import math
 from pathlib import Path
 import pygame
 from src.constants import (
@@ -45,42 +46,62 @@ def get_player_icon_surface(size: int) -> pygame.Surface | None:
     return _load_icon_surface(_PLAYER_ICON_PATH, size)
 
 
-def draw_enemy_icon(surf: pygame.Surface, cx: int, cy: int, size: int) -> None:
+def draw_enemy_icon(
+    surf: pygame.Surface,
+    cx: int,
+    cy: int,
+    size: int,
+    heading_deg: float = 0.0,
+) -> None:
     icon = get_enemy_icon_surface(size)
     if icon is not None:
-        rotated_icon = pygame.transform.rotate(icon, 180)
+        rotated_icon = pygame.transform.rotate(icon, -heading_deg)
         surf.blit(rotated_icon, rotated_icon.get_rect(center=(cx, cy)))
         return
 
     half = size // 2
     points = [
-        (cx, cy + half),
-        (cx - half, cy - half),
-        (cx + half, cy - half),
+        (0.0, -float(half)),
+        (-float(half), float(half)),
+        (float(half), float(half)),
     ]
-    pygame.draw.polygon(surf, (90, 130, 200), points)
-    pygame.draw.polygon(surf, PANEL_BORDER, points, 2)
+    theta = math.radians(heading_deg)
+    sin_t = math.sin(theta)
+    cos_t = math.cos(theta)
+    rotated_points = [
+        (
+            int(round(cx + px * cos_t - py * sin_t)),
+            int(round(cy + px * sin_t + py * cos_t)),
+        )
+        for px, py in points
+    ]
+    pygame.draw.polygon(surf, (90, 130, 200), rotated_points)
+    pygame.draw.polygon(surf, PANEL_BORDER, rotated_points, 2)
 
 
 def draw_player_icon(
         surf: pygame.Surface,
         cx: int,
         cy: int,
-        size: int) -> None:
+        size: int,
+        heading_deg: float = 0.0) -> None:
     icon = get_player_icon_surface(size)
-    if icon is not None:
-        surf.blit(icon, icon.get_rect(center=(cx, cy)))
-        return
+    if icon is None:
+        icon = pygame.Surface((size, size), pygame.SRCALPHA)
+        half = size // 2
+        icx = size // 2
+        icy = size // 2
+        pygame.draw.circle(icon, (180, 110, 70), (icx, icy), half)
+        pygame.draw.circle(icon, PANEL_BORDER, (icx, icy), half, 2)
+        head_r = max(4, size // 9)
+        head_cy = icy - half // 3
+        pygame.draw.circle(icon, WHITE, (icx, head_cy), head_r)
+        body_top = head_cy + head_r
+        body_bot = icy + half // 3
+        pygame.draw.line(icon, WHITE, (icx, body_top), (icx, body_bot), 2)
 
-    half = size // 2
-    pygame.draw.circle(surf, (180, 110, 70), (cx, cy), half)
-    pygame.draw.circle(surf, PANEL_BORDER, (cx, cy), half, 2)
-    head_r = max(4, size // 9)
-    head_cy = cy - half // 3
-    pygame.draw.circle(surf, WHITE, (cx, head_cy), head_r)
-    body_top = head_cy + head_r
-    body_bot = cy + half // 3
-    pygame.draw.line(surf, WHITE, (cx, body_top), (cx, body_bot), 2)
+    rotated_icon = pygame.transform.rotate(icon, -heading_deg)
+    surf.blit(rotated_icon, rotated_icon.get_rect(center=(cx, cy)))
 
 
 def draw_info_card(
