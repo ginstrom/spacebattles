@@ -449,6 +449,33 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(self.screen.waypoints, [self.screen._screen_to_world((200, 220))])
 
     @patch("pygame.time.get_ticks")
+    def test_unpaused_shift_click_adds_waypoint(self, mock_get_ticks):
+        self.screen.is_paused = False
+        self.screen.waypoints = [self.screen._screen_to_world((50, 60))]
+        event = MagicMock()
+        event.type = pygame.MOUSEBUTTONDOWN
+        event.button = 1
+        event.pos = (100, 110)
+        with patch("pygame.key.get_mods", return_value=pygame.KMOD_SHIFT):
+            self.screen.handle_event(event)
+        self.assertEqual(
+            self.screen.waypoints,
+            [self.screen._screen_to_world((50, 60)), self.screen._screen_to_world((100, 110))],
+        )
+
+    @patch("pygame.time.get_ticks")
+    def test_unpaused_ctrl_click_replaces_waypoints(self, mock_get_ticks):
+        self.screen.is_paused = False
+        self.screen.waypoints = [self.screen._screen_to_world((10, 20)), self.screen._screen_to_world((30, 40))]
+        event = MagicMock()
+        event.type = pygame.MOUSEBUTTONDOWN
+        event.button = 1
+        event.pos = (150, 170)
+        with patch("pygame.key.get_mods", return_value=pygame.KMOD_CTRL):
+            self.screen.handle_event(event)
+        self.assertEqual(self.screen.waypoints, [self.screen._screen_to_world((150, 170))])
+
+    @patch("pygame.time.get_ticks")
     def test_map_drag_pans_viewport(self, mock_get_ticks):
         self.screen.map_view_x = 600.0
         self.screen.map_view_y = 500.0

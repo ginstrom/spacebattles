@@ -312,18 +312,17 @@ class BattleScreen(BaseScreen):
             and self._is_map_point(event.pos)
         ):
             mods = self._current_mods()
-            if self.is_paused:
-                pos = self._screen_to_world(event.pos)
-                if mods & pygame.KMOD_CTRL:
-                    self.waypoints = [pos]
-                    if hasattr(pygame.key, "stop_text_input"):
-                        pygame.key.stop_text_input()
-                    return
-                if mods & pygame.KMOD_SHIFT:
-                    self.waypoints.append(pos)
-                    if hasattr(pygame.key, "stop_text_input"):
-                        pygame.key.stop_text_input()
-                    return
+            pos = self._screen_to_world(event.pos)
+            if mods & pygame.KMOD_CTRL:
+                self.waypoints = [pos]
+                if hasattr(pygame.key, "stop_text_input"):
+                    pygame.key.stop_text_input()
+                return
+            if mods & pygame.KMOD_SHIFT:
+                self.waypoints.append(pos)
+                if hasattr(pygame.key, "stop_text_input"):
+                    pygame.key.stop_text_input()
+                return
             click_hits_ui = (
                 self.toggle_tab_rect.collidepoint(event.pos)
                 or any(r.collidepoint(event.pos) for r in self.weapon_buttons.values())
