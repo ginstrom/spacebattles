@@ -152,18 +152,29 @@ def draw_info_card(
     while len(shields) < 6:
         shields.append(0)
     shield_max = max(1, int(ship.shield_max_hp))
-    shield_cols = 3
-    shield_col_w = content_w // shield_cols
+    shield_label_w = 28
+    shield_bar_gap = 4
+    shield_bar_w = max(40, content_w - shield_label_w - shield_bar_gap)
+    shield_bar_h = max(12, line_h - 4)
     for idx, value in enumerate(shields):
-        row = idx // shield_cols
-        col = idx % shield_cols
-        sx = tx + col * shield_col_w
-        sy = ty + row * line_h
-        shield_label = f"S{idx + 1}: {value}/{shield_max}"
-        shield_color = hp_color(value, shield_max)
-        shield_surf = font.render(shield_label, True, shield_color)
-        surf.blit(shield_surf, (sx, sy))
-    ty += (2 * line_h) + 6
+        sy = ty + (idx * (shield_bar_h + 3))
+        label_text = f"S{idx + 1}"
+        label_surf = font.render(label_text, True, GRAY)
+        surf.blit(label_surf, (tx, sy))
+
+        bar_x = tx + shield_label_w
+        bar_rect = pygame.Rect(bar_x, sy, shield_bar_w, shield_bar_h)
+        pygame.draw.rect(surf, (50, 55, 75), bar_rect, border_radius=4)
+        fill_w = int(shield_bar_w * max(0, value) / shield_max) if shield_max > 0 else 0
+        if fill_w > 0:
+            fill_rect = pygame.Rect(bar_x, sy, fill_w, shield_bar_h)
+            pygame.draw.rect(surf, hp_color(value, shield_max), fill_rect, border_radius=4)
+
+        ratio_text = f"S{idx + 1} {value}/{shield_max}"
+        ratio_surf = font.render(ratio_text, True, WHITE)
+        ratio_rect = ratio_surf.get_rect(center=bar_rect.center)
+        surf.blit(ratio_surf, ratio_rect)
+    ty += (len(shields) * (shield_bar_h + 3)) + 4
 
     weapons_label = font.render("Weapons:", True, GRAY)
     surf.blit(weapons_label, (tx, ty))

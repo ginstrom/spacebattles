@@ -312,8 +312,9 @@ class TestUI(unittest.TestCase):
 
         rendered_texts = [call.args[0] for call in self.mock_font.render.call_args_list]
         self.assertTrue(any(text.startswith("Hull:") for text in rendered_texts))
-        self.assertTrue(any(text.startswith("S1:") for text in rendered_texts))
-        self.assertTrue(any(text.startswith("S6:") for text in rendered_texts))
+        self.assertTrue(any(text.startswith("S1 ") for text in rendered_texts))
+        self.assertTrue(any(text.startswith("S6 ") for text in rendered_texts))
+        self.assertTrue(any("/" in text and text.startswith("S") for text in rendered_texts))
 
     @patch('pygame.draw.rect')
     def test_draw_info_card_cpu(self, mock_rect):
