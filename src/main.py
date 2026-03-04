@@ -98,7 +98,7 @@ def _capture_config_from_env() -> tuple[int, int, str, str] | None:
     output = os.getenv("SPACEBATTLE_CAPTURE_OUTPUT", "assets/demo/gameplay.gif")
     caption = os.getenv(
         "SPACEBATTLE_CAPTURE_CAPTION",
-        "Image #1: Automated demo run showing waypoint navigation and laser fire.",
+        "Image #1: Automated demo run showing two waypoint clicks with visible cursor, then laser fire.",
     )
     return duration, fps, output, caption
 

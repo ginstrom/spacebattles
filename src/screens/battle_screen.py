@@ -78,8 +78,12 @@ class BattleScreen(BaseScreen):
         self.demo_started_at_ms: int | None = None
         self.demo_waypoint_set = False
         self.demo_last_fire_at_ms = -10_000
+        self.demo_script_step = 0
+        self.demo_waypoint_targets: list[tuple[float, float]] = []
+        self.demo_cursor_screen_pos: tuple[int, int] | None = None
+        self.demo_cursor_click_at_ms = -10_000
         if self.demo_script_enabled:
-            self.message = "Demo harness active: auto-waypoint and auto-fire."
+            self.message = "Demo harness active: auto-waypoints and auto-fire."
 
     def _screen_size(self) -> tuple[int, int]:
         if hasattr(self.screen_manager, "screen") and hasattr(self.screen_manager.screen, "get_size"):
@@ -343,6 +347,10 @@ class BattleScreen(BaseScreen):
                 self.demo_started_at_ms = None
                 self.demo_waypoint_set = False
                 self.demo_last_fire_at_ms = -10_000
+                self.demo_script_step = 0
+                self.demo_waypoint_targets = []
+                self.demo_cursor_screen_pos = None
+                self.demo_cursor_click_at_ms = -10_000
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -593,19 +601,53 @@ class BattleScreen(BaseScreen):
         if self.is_paused:
             self._toggle_pause(now_ms)
             self.demo_started_at_ms = now_ms
+            self.demo_script_step = 0
+            self.demo_waypoint_set = False
+            self.demo_waypoint_targets = []
+            self.demo_cursor_screen_pos = None
             return
 
         if self.demo_started_at_ms is None:
             self.demo_started_at_ms = now_ms
 
         elapsed_ms = now_ms - self.demo_started_at_ms
-        if elapsed_ms >= 800 and not self.demo_waypoint_set:
-            target_x = min(float(self.map_world_w), self.player.x + self.map_world_w * 0.08)
-            target_y = max(0.0, self.player.y - self.map_world_h * 0.08)
-            self.waypoints = [(target_x, target_y)]
-            self.demo_waypoint_set = True
+        if not self.demo_waypoint_targets:
+            target_1 = (
+                min(float(self.map_world_w), self.player.x + self.map_world_w * 0.06),
+                max(0.0, self.player.y - self.map_world_h * 0.06),
+            )
+            target_2 = (
+                min(float(self.map_world_w), target_1[0] + self.map_world_w * 0.08),
+                max(0.0, target_1[1] - self.map_world_h * 0.05),
+            )
+            self.demo_waypoint_targets = [target_1, target_2]
 
-        if elapsed_ms >= 1600 and (now_ms - self.demo_last_fire_at_ms) >= 450:
+        if self.demo_script_step == 0 and elapsed_ms >= 600:
+            self.demo_cursor_screen_pos = (
+                int(round(self.demo_waypoint_targets[0][0] - self.map_view_x)),
+                int(round(self.demo_waypoint_targets[0][1] - self.map_view_y)),
+            )
+            self.demo_script_step = 1
+
+        if self.demo_script_step == 1 and elapsed_ms >= 900:
+            self.waypoints = [self.demo_waypoint_targets[0]]
+            self.demo_cursor_click_at_ms = now_ms
+            self.demo_script_step = 2
+
+        if self.demo_script_step == 2 and elapsed_ms >= 1200:
+            self.demo_cursor_screen_pos = (
+                int(round(self.demo_waypoint_targets[1][0] - self.map_view_x)),
+                int(round(self.demo_waypoint_targets[1][1] - self.map_view_y)),
+            )
+            self.demo_script_step = 3
+
+        if self.demo_script_step == 3 and elapsed_ms >= 1500:
+            self.waypoints.append(self.demo_waypoint_targets[1])
+            self.demo_cursor_click_at_ms = now_ms
+            self.demo_waypoint_set = True
+            self.demo_script_step = 4
+
+        if elapsed_ms >= 2000 and (now_ms - self.demo_last_fire_at_ms) >= 450:
             self._fire_player_weapon(0, now_ms)
             self.demo_last_fire_at_ms = now_ms
 
@@ -642,6 +684,23 @@ class BattleScreen(BaseScreen):
 
         if self.winner is not None:
             self._draw_winner_overlay(screen)
+
+        self._draw_demo_cursor(screen, map_w)
+
+    def _draw_demo_cursor(self, screen, map_w: int) -> None:
+        if not self.demo_script_enabled or self.demo_cursor_screen_pos is None:
+            return
+
+        cx, cy = self.demo_cursor_screen_pos
+        if not (0 <= cx < map_w and 0 <= cy < self.screen_h):
+            return
+        pygame.draw.circle(screen, WHITE, (cx, cy), 7, 2)
+        pygame.draw.line(screen, WHITE, (cx - 10, cy), (cx + 10, cy), 1)
+        pygame.draw.line(screen, WHITE, (cx, cy - 10), (cx, cy + 10), 1)
+        click_age = pygame.time.get_ticks() - self.demo_cursor_click_at_ms
+        if 0 <= click_age <= 180:
+            ring_radius = 10 + int(click_age / 20)
+            pygame.draw.circle(screen, YELLOW, (cx, cy), ring_radius, 2)
 
     def _start_attack_animation(self, player_fired, weapon_name, hit, now_ms):
         color = RED if weapon_name == "Laser" else YELLOW

@@ -101,7 +101,7 @@ class TestScreens(unittest.TestCase):
     @patch.dict(os.environ, {"SPACEBATTLE_DEMO_SCRIPT": "1"})
     @patch("pygame.time.get_ticks")
     def test_demo_script_unpauses_sets_waypoint_and_fires(self, mock_get_ticks):
-        mock_get_ticks.side_effect = [0, 900, 1700]
+        mock_get_ticks.side_effect = [0, 700, 950, 1250, 1550, 2100]
 
         with patch("pygame.font.SysFont") as mock_sysfont:
             mock_font = MagicMock(spec=pygame.font.Font)
@@ -118,9 +118,13 @@ class TestScreens(unittest.TestCase):
             screen.update(16)
             screen.update(16)
             screen.update(16)
+            screen.update(16)
+            screen.update(16)
+            screen.update(16)
 
         self.assertFalse(screen.is_paused)
-        self.assertGreaterEqual(len(screen.waypoints), 1)
+        self.assertEqual(len(screen.waypoints), 2)
+        self.assertIsNotNone(screen.demo_cursor_screen_pos)
         mock_fire.assert_called()
 
     @patch("pygame.key.stop_text_input")

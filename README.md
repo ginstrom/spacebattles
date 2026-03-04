@@ -4,9 +4,9 @@ A space game written using pygame.
 
 ## Gameplay Demo
 
-![Image #1: Automated demo run showing waypoint navigation and laser fire against the CPU ship.](assets/demo/gameplay.gif)
+![Image #1: Automated demo run showing two waypoint clicks with visible cursor, then laser fire against the CPU ship.](assets/demo/gameplay.gif)
 
-_Image #1: Scripted 10-second run harness that auto-unpauses, sets a waypoint, and fires._
+_Image #1: Scripted 10-second run harness that auto-unpauses, sets two waypoints with visible cursor clicks, and fires._
 
 ## Capture a New 10-Second GIF
 

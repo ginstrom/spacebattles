@@ -14,7 +14,7 @@ class CaptureConfig:
     duration: int = 10
     output: str = "assets/demo/gameplay.gif"
     fps: int = 20
-    caption: str = "Image #1: Automated demo run showing waypoint navigation and laser fire."
+    caption: str = "Image #1: Automated demo run showing two waypoint clicks with visible cursor, then laser fire."
     game_command: tuple[str, ...] = ("uv", "run", "python", "-m", "src.main")
 
 
