@@ -143,7 +143,7 @@ class TestScreens(unittest.TestCase):
         self.assertLess(self.screen.cpu.rotation_speed_deg_s, self.screen.player.rotation_speed_deg_s)
         self.assertAlmostEqual(
             self.screen.player.rotation_speed_deg_s / self.screen.cpu.rotation_speed_deg_s,
-            1.5,
+            2.0,
             places=2,
         )
 
