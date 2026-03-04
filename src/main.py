@@ -3,6 +3,7 @@ The entry point for the real-time Ship Duel application.
 Initializes the game engine and the ScreenManager.
 """
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -32,7 +33,9 @@ def build_game() -> tuple[ScreenManager, pygame.time.Clock]:
     pygame.init()
     if hasattr(pygame.key, "stop_text_input"):
         pygame.key.stop_text_input()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+    windowed = os.getenv("SPACEBATTLE_WINDOWED", "0") == "1"
+    screen_flags = 0 if windowed else pygame.FULLSCREEN
+    screen = pygame.display.set_mode((WIDTH, HEIGHT), screen_flags)
     pygame.display.set_caption("Ship Duel")
     clock = pygame.time.Clock()
 

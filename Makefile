@@ -6,7 +6,7 @@ help:
 	@echo "---------------------------"
 	@echo "run   : Start the game"
 	@echo "test  : Run all unit tests"
-	@echo "capture-gif : Capture a 10-second gameplay GIF to assets/demo/gameplay.gif"
+	@echo "capture-gif : Capture scripted 10-second gameplay GIF with caption"
 	@echo "help  : Show this help message"
 	@echo "clean : Remove python cache files"
 

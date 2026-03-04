@@ -4,6 +4,7 @@ flow, player interaction, and CPU logic.
 """
 import logging
 import math
+import os
 import pygame
 import random
 import yaml
@@ -73,6 +74,12 @@ class BattleScreen(BaseScreen):
         self.map_dragging = False
         self.map_drag_last_pos: tuple[int, int] | None = None
         self.pause_menu_visible = False
+        self.demo_script_enabled = os.getenv("SPACEBATTLE_DEMO_SCRIPT", "0") == "1"
+        self.demo_started_at_ms: int | None = None
+        self.demo_waypoint_set = False
+        self.demo_last_fire_at_ms = -10_000
+        if self.demo_script_enabled:
+            self.message = "Demo harness active: auto-waypoint and auto-fire."
 
     def _screen_size(self) -> tuple[int, int]:
         if hasattr(self.screen_manager, "screen") and hasattr(self.screen_manager.screen, "get_size"):
@@ -323,6 +330,9 @@ class BattleScreen(BaseScreen):
                 self.map_dragging = False
                 self.map_drag_last_pos = None
                 self.pause_menu_visible = False
+                self.demo_started_at_ms = None
+                self.demo_waypoint_set = False
+                self.demo_last_fire_at_ms = -10_000
             return
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -455,6 +465,7 @@ class BattleScreen(BaseScreen):
 
     def update(self, dt):
         now = pygame.time.get_ticks()
+        self._run_demo_script(now)
         if self.winner is not None or self.is_paused:
             return
 
@@ -564,6 +575,29 @@ class BattleScreen(BaseScreen):
                     self._finish_game("Computer")
                     return
             self.cpu_fire_at_ms = now + self.CPU_DELAY_MS
+
+    def _run_demo_script(self, now_ms: int) -> None:
+        if not self.demo_script_enabled or self.winner is not None:
+            return
+
+        if self.is_paused:
+            self._toggle_pause(now_ms)
+            self.demo_started_at_ms = now_ms
+            return
+
+        if self.demo_started_at_ms is None:
+            self.demo_started_at_ms = now_ms
+
+        elapsed_ms = now_ms - self.demo_started_at_ms
+        if elapsed_ms >= 800 and not self.demo_waypoint_set:
+            target_x = min(float(self.map_world_w), self.player.x + self.map_world_w * 0.08)
+            target_y = max(0.0, self.player.y - self.map_world_h * 0.08)
+            self.waypoints = [(target_x, target_y)]
+            self.demo_waypoint_set = True
+
+        if elapsed_ms >= 1600 and (now_ms - self.demo_last_fire_at_ms) >= 450:
+            self._fire_player_weapon(0, now_ms)
+            self.demo_last_fire_at_ms = now_ms
 
     def draw(self, screen):
         self.screen_w, self.screen_h = self._screen_size()

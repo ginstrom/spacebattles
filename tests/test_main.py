@@ -1,6 +1,7 @@
 import logging
 import tempfile
 import unittest
+import os
 from pathlib import Path
 from unittest.mock import patch
 import pygame
@@ -59,6 +60,32 @@ class TestMainLogging(unittest.TestCase):
         self.assertIsNotNone(manager)
         self.assertEqual(mock_set_screen.call_args[0][0].__name__, "MenuScreen")
         mock_set_mode.assert_called_once_with((WIDTH, HEIGHT), pygame.FULLSCREEN)
+
+    @patch.dict(os.environ, {"SPACEBATTLE_WINDOWED": "1"})
+    @patch("src.main.pygame.time.Clock")
+    @patch("src.main.pygame.display.set_caption")
+    @patch("src.main.pygame.display.set_mode")
+    @patch("src.main.pygame.init")
+    @patch("src.main.ScreenManager.set_screen")
+    def test_build_game_uses_windowed_mode_when_enabled(
+        self,
+        mock_set_screen,
+        mock_init,
+        mock_set_mode,
+        mock_set_caption,
+        mock_clock_cls,
+    ):
+        mock_surface = unittest.mock.MagicMock()
+        mock_set_mode.return_value = mock_surface
+        mock_clock = unittest.mock.MagicMock()
+        mock_clock_cls.return_value = mock_clock
+
+        manager, clock = build_game()
+
+        self.assertIs(clock, mock_clock)
+        self.assertIsNotNone(manager)
+        self.assertEqual(mock_set_screen.call_args[0][0].__name__, "MenuScreen")
+        mock_set_mode.assert_called_once_with((WIDTH, HEIGHT), 0)
 
 
 if __name__ == "__main__":
