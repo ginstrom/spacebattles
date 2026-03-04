@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 import pygame
 
-from src.main import configure_logging, build_game
+from src.main import configure_logging, build_game, build_capture_ffmpeg_command
 from src.constants import WIDTH, HEIGHT
 
 
@@ -86,6 +86,21 @@ class TestMainLogging(unittest.TestCase):
         self.assertIsNotNone(manager)
         self.assertEqual(mock_set_screen.call_args[0][0].__name__, "MenuScreen")
         mock_set_mode.assert_called_once_with((WIDTH, HEIGHT), 0)
+
+    def test_build_capture_ffmpeg_command_uses_rawvideo_stdin(self):
+        cmd = build_capture_ffmpeg_command(
+            width=WIDTH,
+            height=HEIGHT,
+            fps=20,
+            caption="Image #1: Demo",
+            output_path="assets/demo/gameplay.gif",
+        )
+        self.assertEqual(cmd[0], "ffmpeg")
+        self.assertIn("rawvideo", cmd)
+        self.assertIn("rgb24", cmd)
+        self.assertIn("-", cmd)
+        self.assertIn("-filter_complex", cmd)
+        self.assertIn("drawtext", " ".join(cmd))
 
 
 if __name__ == "__main__":

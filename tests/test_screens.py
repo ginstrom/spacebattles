@@ -69,6 +69,15 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(new_game_rect.centerx, dynamic_w // 2)
         self.assertEqual(new_game_rect.y, dynamic_h // 2 + 20)
 
+    @patch.dict(os.environ, {"SPACEBATTLE_DEMO_SCRIPT": "1"})
+    def test_menu_screen_auto_starts_battle_in_demo_mode(self):
+        with patch("pygame.font.SysFont") as mock_sysfont:
+            mock_sysfont.return_value = MagicMock(spec=pygame.font.Font)
+            screen = MenuScreen(self.manager)
+        with patch.object(self.manager, "set_screen") as mock_set_screen:
+            screen.update(16)
+            mock_set_screen.assert_called_once()
+
     def _mouse_event(self, x=125, y=125):
         event = MagicMock()
         event.type = pygame.MOUSEBUTTONDOWN

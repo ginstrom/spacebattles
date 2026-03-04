@@ -23,7 +23,7 @@ test-docs:
 	rm tests/test_manual.py
 
 capture-gif:
-	./scripts/capture_demo_gif.sh --duration 10 --output assets/demo/gameplay.gif --fps 20 --display :0.0 --geometry 1280x720
+	./scripts/capture_demo_gif.sh --duration 10 --output assets/demo/gameplay.gif --fps 20
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

@@ -17,9 +17,9 @@ make capture-gif
 Equivalent direct command:
 
 ```bash
-./scripts/capture_demo_gif.sh --duration 10 --output assets/demo/gameplay.gif --fps 20 --display "${DISPLAY:-:0.0}" --geometry 1280x720
+./scripts/capture_demo_gif.sh --duration 10 --output assets/demo/gameplay.gif --fps 20
 ```
 
 Requirements:
 - `ffmpeg` installed and on `PATH`
-- An X11 display available at the selected `--display`
+- A working display/SDL environment for pygame
