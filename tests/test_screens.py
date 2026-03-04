@@ -85,6 +85,15 @@ class TestScreens(unittest.TestCase):
         event.pos = (x, y)
         return event
 
+    @staticmethod
+    def _key_event(key, mod=0):
+        event = MagicMock()
+        event.type = pygame.KEYDOWN
+        event.key = key
+        event.mod = mod
+        event.repeat = 0
+        return event
+
     class _PressedState:
         def __init__(self, pressed_keys):
             self.pressed_keys = pressed_keys
@@ -652,6 +661,80 @@ class TestScreens(unittest.TestCase):
         with patch("pygame.key.get_mods", return_value=pygame.KMOD_CTRL):
             self.screen.handle_event(event)
         self.assertEqual(self.screen.waypoints, [self.screen._screen_to_world((150, 170))])
+
+    @patch("pygame.key.get_mods", return_value=pygame.KMOD_CTRL)
+    @patch("pygame.mouse.get_pos", return_value=(140, 160))
+    def test_draw_ctrl_preview_uses_cursor_waypoint_only(self, _mock_mouse_pos, _mock_mods):
+        self.screen.waypoints = [self.screen._screen_to_world((50, 60))]
+        with (
+            patch.object(self.screen.map, "draw") as mock_map_draw,
+            patch.object(self.screen, "_draw_attack_animation"),
+            patch.object(self.screen, "_draw_side_panel"),
+            patch.object(self.screen, "_draw_toggle_tab", return_value=self.screen.toggle_tab_rect),
+            patch.object(self.screen, "_draw_demo_cursor"),
+        ):
+            self.screen.draw(self.mock_surface)
+        self.assertEqual(mock_map_draw.call_args.args[8], [self.screen._screen_to_world((140, 160))])
+
+    @patch("pygame.key.get_mods", return_value=pygame.KMOD_SHIFT)
+    @patch("pygame.mouse.get_pos", return_value=(220, 260))
+    def test_draw_shift_preview_appends_cursor_waypoint_when_route_exists(self, _mock_mouse_pos, _mock_mods):
+        first = self.screen._screen_to_world((80, 90))
+        self.screen.waypoints = [first]
+        with (
+            patch.object(self.screen.map, "draw") as mock_map_draw,
+            patch.object(self.screen, "_draw_attack_animation"),
+            patch.object(self.screen, "_draw_side_panel"),
+            patch.object(self.screen, "_draw_toggle_tab", return_value=self.screen.toggle_tab_rect),
+            patch.object(self.screen, "_draw_demo_cursor"),
+        ):
+            self.screen.draw(self.mock_surface)
+        self.assertEqual(
+            mock_map_draw.call_args.args[8],
+            [first, self.screen._screen_to_world((220, 260))],
+        )
+
+    @patch("pygame.time.get_ticks")
+    def test_ctrl_z_ctrl_y_undo_redo_waypoints(self, mock_get_ticks):
+        click_a = self._mouse_event(100, 100)
+        click_b = self._mouse_event(160, 180)
+        with patch("pygame.key.get_mods", return_value=pygame.KMOD_CTRL):
+            self.screen.handle_event(click_a)
+        with patch("pygame.key.get_mods", return_value=pygame.KMOD_SHIFT):
+            self.screen.handle_event(click_b)
+        expected_a = self.screen._screen_to_world((100, 100))
+        expected_b = self.screen._screen_to_world((160, 180))
+        self.assertEqual(self.screen.waypoints, [expected_a, expected_b])
+
+        self.screen.handle_event(self._key_event(pygame.K_z, pygame.KMOD_CTRL))
+        self.assertEqual(self.screen.waypoints, [expected_a])
+
+        self.screen.handle_event(self._key_event(pygame.K_z, pygame.KMOD_CTRL))
+        self.assertEqual(self.screen.waypoints, [])
+
+        self.screen.handle_event(self._key_event(pygame.K_y, pygame.KMOD_CTRL))
+        self.assertEqual(self.screen.waypoints, [expected_a])
+
+        self.screen.handle_event(self._key_event(pygame.K_y, pygame.KMOD_CTRL))
+        self.assertEqual(self.screen.waypoints, [expected_a, expected_b])
+
+    @patch("pygame.time.get_ticks")
+    def test_new_waypoint_edit_clears_redo_stack(self, mock_get_ticks):
+        with patch("pygame.key.get_mods", return_value=pygame.KMOD_CTRL):
+            self.screen.handle_event(self._mouse_event(100, 100))
+        with patch("pygame.key.get_mods", return_value=pygame.KMOD_SHIFT):
+            self.screen.handle_event(self._mouse_event(130, 140))
+        self.screen.handle_event(self._key_event(pygame.K_z, pygame.KMOD_CTRL))
+        with patch("pygame.key.get_mods", return_value=pygame.KMOD_SHIFT):
+            self.screen.handle_event(self._mouse_event(200, 210))
+        expected = [
+            self.screen._screen_to_world((100, 100)),
+            self.screen._screen_to_world((200, 210)),
+        ]
+        self.assertEqual(self.screen.waypoints, expected)
+
+        self.screen.handle_event(self._key_event(pygame.K_y, pygame.KMOD_CTRL))
+        self.assertEqual(self.screen.waypoints, expected)
 
     @patch("pygame.time.get_ticks")
     def test_map_drag_pans_viewport(self, mock_get_ticks):

@@ -67,6 +67,8 @@ class BattleScreen(BaseScreen):
         self.turn_left_held = False
         self.turn_right_held = False
         self.waypoints: list[tuple[float, float]] = []
+        self.waypoint_undo_stack: list[list[tuple[float, float]]] = []
+        self.waypoint_redo_stack: list[list[tuple[float, float]]] = []
         self.queued_player_attacks: list[int] = []
         self.cpu_follow_heading_deg = self.player.heading
         self.cpu_pending_follow_heading_deg: float | None = None
@@ -115,6 +117,40 @@ class BattleScreen(BaseScreen):
 
     def _screen_to_world(self, pos: tuple[int, int]) -> tuple[float, float]:
         return float(pos[0]) + self.map_view_x, float(pos[1]) + self.map_view_y
+
+    def _push_waypoint_undo_state(self) -> None:
+        self.waypoint_undo_stack.append(list(self.waypoints))
+        self.waypoint_redo_stack.clear()
+
+    def _try_undo_waypoints(self) -> bool:
+        if not self.waypoint_undo_stack:
+            return False
+        self.waypoint_redo_stack.append(list(self.waypoints))
+        self.waypoints = self.waypoint_undo_stack.pop()
+        return True
+
+    def _try_redo_waypoints(self) -> bool:
+        if not self.waypoint_redo_stack:
+            return False
+        self.waypoint_undo_stack.append(list(self.waypoints))
+        self.waypoints = self.waypoint_redo_stack.pop()
+        return True
+
+    def _preview_waypoints_for_draw(self) -> list[tuple[float, float]]:
+        try:
+            mouse_pos = pygame.mouse.get_pos()
+        except pygame.error:
+            return self.waypoints
+        if not self._is_map_point(mouse_pos):
+            return self.waypoints
+
+        mods = self._current_mods()
+        preview_pos = self._screen_to_world(mouse_pos)
+        if mods & pygame.KMOD_CTRL:
+            return [preview_pos]
+        if (mods & pygame.KMOD_SHIFT) and self.waypoints:
+            return [*self.waypoints, preview_pos]
+        return self.waypoints
 
     def _clamp_map_view(self) -> None:
         map_w = self._current_map_width()
@@ -337,6 +373,8 @@ class BattleScreen(BaseScreen):
                 self.turn_left_held = False
                 self.turn_right_held = False
                 self.waypoints.clear()
+                self.waypoint_undo_stack.clear()
+                self.waypoint_redo_stack.clear()
                 self.queued_player_attacks.clear()
                 self.cpu_follow_heading_deg = self.player.heading
                 self.cpu_pending_follow_heading_deg = None
@@ -360,6 +398,18 @@ class BattleScreen(BaseScreen):
                 return
             self._toggle_pause(now)
             return
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_z:
+            mods = getattr(event, "mod", self._current_mods())
+            if mods & pygame.KMOD_CTRL:
+                if self._try_undo_waypoints() and hasattr(pygame.key, "stop_text_input"):
+                    pygame.key.stop_text_input()
+                return
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_y:
+            mods = getattr(event, "mod", self._current_mods())
+            if mods & pygame.KMOD_CTRL:
+                if self._try_redo_waypoints() and hasattr(pygame.key, "stop_text_input"):
+                    pygame.key.stop_text_input()
+                return
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             if self.pause_menu_visible:
                 self._set_pause_menu_visible(False, now)
@@ -412,11 +462,13 @@ class BattleScreen(BaseScreen):
             mods = self._current_mods()
             pos = self._screen_to_world(event.pos)
             if mods & pygame.KMOD_CTRL:
+                self._push_waypoint_undo_state()
                 self.waypoints = [pos]
                 if hasattr(pygame.key, "stop_text_input"):
                     pygame.key.stop_text_input()
                 return
             if mods & pygame.KMOD_SHIFT:
+                self._push_waypoint_undo_state()
                 self.waypoints.append(pos)
                 if hasattr(pygame.key, "stop_text_input"):
                     pygame.key.stop_text_input()
@@ -666,7 +718,7 @@ class BattleScreen(BaseScreen):
             self.winner,
             self.font,
             self.small_font,
-            self.waypoints,
+            self._preview_waypoints_for_draw(),
             self.map_view_x,
             self.map_view_y,
         )
