@@ -4,7 +4,7 @@ import pygame
 from src.ui.map import Map
 from src.models.ship import Ship
 from src.models.weapon import Weapon
-from src.constants import HEIGHT
+from src.constants import HEIGHT, SHIP_ICON_SIZE, BLUE
 
 
 class TestUI(unittest.TestCase):
@@ -36,6 +36,7 @@ class TestUI(unittest.TestCase):
 
     @patch('src.ui.map.draw_enemy_icon')
     @patch('src.ui.map.draw_player_icon')
+    @patch('pygame.draw.arc')
     @patch('pygame.draw.circle')
     @patch('pygame.draw.line')
     @patch('pygame.draw.rect')
@@ -44,6 +45,7 @@ class TestUI(unittest.TestCase):
             mock_rect,
             mock_line,
             mock_circle,
+            mock_arc,
             mock_player_icon,
             mock_enemy_icon):
         self.map_obj.draw(
@@ -75,6 +77,40 @@ class TestUI(unittest.TestCase):
         mock_player_icon.assert_called_once()
         self.assertEqual(mock_enemy_icon.call_args[0][4], self.cpu.heading)
         self.assertEqual(mock_player_icon.call_args[0][4], self.player.heading)
+
+    @patch('src.ui.map.draw_enemy_icon')
+    @patch('src.ui.map.draw_player_icon')
+    @patch('pygame.draw.arc')
+    @patch('pygame.draw.circle')
+    @patch('pygame.draw.line')
+    def test_map_draw_renders_six_shield_segments_per_ship(
+        self,
+        mock_line,
+        mock_circle,
+        mock_arc,
+        mock_player_icon,
+        mock_enemy_icon,
+    ):
+        self.map_obj.draw(
+            self.mock_surf, 800, self.player, self.cpu, True, None,
+            self.mock_font, self.mock_small_font
+        )
+        self.assertEqual(mock_arc.call_count, 12)
+        legacy_ring_calls = [
+            call for call in mock_circle.call_args_list
+            if len(call.args) >= 4
+            and call.args[1] == BLUE
+            and call.args[3] == (SHIP_ICON_SIZE // 2 + 10)
+        ]
+        self.assertEqual(legacy_ring_calls, [])
+
+    def test_shield_segment_width_scales_with_strength(self):
+        self.player.shields = [self.player.shield_max_hp, 0, 50, 25, 75, 10]
+        high = self.map_obj._shield_segment_width(self.player, 0)
+        low = self.map_obj._shield_segment_width(self.player, 1)
+        mid = self.map_obj._shield_segment_width(self.player, 2)
+        self.assertGreater(high, mid)
+        self.assertGreater(mid, low)
 
     @patch('src.ui.map.draw_player_icon')
     @patch('pygame.draw.line')
@@ -121,12 +157,14 @@ class TestUI(unittest.TestCase):
 
     @patch('src.ui.map.draw_enemy_icon')
     @patch('src.ui.map.draw_player_icon')
+    @patch('pygame.draw.arc')
     @patch('pygame.draw.circle')
     @patch('pygame.draw.line')
     def test_map_draw_uses_surface_height_for_clip_and_border(
         self,
         mock_line,
         mock_circle,
+        mock_arc,
         mock_player_icon,
         mock_enemy_icon,
     ):
@@ -161,6 +199,7 @@ class TestUI(unittest.TestCase):
 
     @patch('src.ui.map.draw_enemy_icon')
     @patch('src.ui.map.draw_player_icon')
+    @patch('pygame.draw.arc')
     @patch('pygame.draw.circle')
     @patch('pygame.draw.line')
     @patch('pygame.draw.rect')
@@ -169,6 +208,7 @@ class TestUI(unittest.TestCase):
         mock_rect,
         mock_line,
         mock_circle,
+        mock_arc,
         mock_player_icon,
         mock_enemy_icon,
     ):
@@ -245,6 +285,35 @@ class TestUI(unittest.TestCase):
         self.assertIn(0, weapon_buttons)
         self.assertEqual(len(ui_elements), 0)
         self.assertTrue(mock_rect.called)
+
+    @patch('pygame.draw.rect')
+    def test_draw_info_card_shows_hull_and_shields(self, mock_rect):
+        from src.ui.elements import draw_info_card
+
+        weapon_buttons = {}
+        ui_elements = {}
+        detail_toggles = {}
+        expanded = set()
+        rect = pygame.Rect(10, 10, 200, 320)
+
+        draw_info_card(
+            self.mock_surf,
+            rect,
+            self.mock_font,
+            self.player,
+            True,
+            True,
+            None,
+            weapon_buttons,
+            ui_elements,
+            detail_toggles,
+            expanded,
+        )
+
+        rendered_texts = [call.args[0] for call in self.mock_font.render.call_args_list]
+        self.assertTrue(any(text.startswith("Hull:") for text in rendered_texts))
+        self.assertTrue(any(text.startswith("S1:") for text in rendered_texts))
+        self.assertTrue(any(text.startswith("S6:") for text in rendered_texts))
 
     @patch('pygame.draw.rect')
     def test_draw_info_card_cpu(self, mock_rect):

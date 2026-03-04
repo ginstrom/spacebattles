@@ -1,6 +1,8 @@
 player:
   name: Alliance cruiser
   max_hp: 750
+  shield_max_hp: 120
+  shields: [120, 120, 100, 120, 120, 110]
   rotation_speed_deg_s: 30.0
   weapons:
     - name: Laser
@@ -11,6 +13,8 @@ player:
 computer:
   name: Gorlach cruiser
   max_hp: 500
+  shield_max_hp: 90
+  shields: [90, 90, 90, 75, 90, 90]
   rotation_speed_deg_s: 15.0
   weapons:
     - name: Laser
