@@ -121,9 +121,22 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(self.screen.player.name, "Alliance cruiser")
         self.assertEqual(self.screen.player.max_hp, 750)
         self.assertEqual(self.screen.player.hp, 750)
+        self.assertEqual(self.screen.player.hull_max_hp, 750)
+        self.assertEqual(self.screen.player.hull_hp, 750)
+        self.assertEqual(len(self.screen.player.shields), 6)
+        self.assertTrue(all(v == self.screen.player.shield_max_hp for v in self.screen.player.shields))
+        self.assertIn("weapons", self.screen.player.systems)
+        self.assertEqual(
+            self.screen.player.systems["weapons"]["max"],
+            len(self.screen.player.weapons),
+        )
         self.assertEqual(self.screen.cpu.name, "Gorlach cruiser")
         self.assertEqual(self.screen.cpu.max_hp, 500)
         self.assertEqual(self.screen.cpu.hp, 500)
+        self.assertEqual(self.screen.cpu.hull_max_hp, 500)
+        self.assertEqual(self.screen.cpu.hull_hp, 500)
+        self.assertEqual(len(self.screen.cpu.shields), 6)
+        self.assertIn("weapons", self.screen.cpu.systems)
 
     def test_player_turn_rate_is_faster_than_cpu(self):
         self.assertLess(self.screen.player.rotation_speed_deg_s, 90.0)
@@ -719,9 +732,9 @@ class TestScreens(unittest.TestCase):
         mock_get_ticks.return_value = 2000
         self.screen.is_paused = False
         self.screen.cpu_fire_at_ms = 1000
-        self.screen.player.hp = 10
+        self.screen.player.hull_hp = 10
         def lethal_cpu_attack(*args, **kwargs):
-            self.screen.player.hp = 0
+            self.screen.player.hull_hp = 0
             return (True, 20)
 
         with patch("src.systems.combat.CombatSystem.execute_attack", side_effect=lethal_cpu_attack):

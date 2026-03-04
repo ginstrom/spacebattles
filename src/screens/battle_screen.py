@@ -272,26 +272,36 @@ class BattleScreen(BaseScreen):
         map_center_y = self.map_world_h / 2.0
         player_cfg = self.ship_configs["player"]
         computer_cfg = self.ship_configs["computer"]
+        player_weapons = self._build_weapons_from_config(player_cfg)
+        cpu_weapons = self._build_weapons_from_config(computer_cfg)
+        player_shield_max_hp = int(player_cfg.get("shield_max_hp", 100))
+        cpu_shield_max_hp = int(computer_cfg.get("shield_max_hp", 100))
 
         player = Ship(
             name=player_cfg["name"],
             max_hp=int(player_cfg["max_hp"]),
             hp=int(player_cfg["max_hp"]),
-            weapons=self._build_weapons_from_config(player_cfg),
+            weapons=player_weapons,
             x=map_center_x,
             y=map_center_y + self.screen_h / 4.0,
             heading=0.0,
             rotation_speed_deg_s=float(player_cfg["rotation_speed_deg_s"]),
+            shield_max_hp=player_shield_max_hp,
+            shields=list(player_cfg.get("shields", [player_shield_max_hp] * 6)),
+            systems={"weapons": {"current": len(player_weapons), "max": len(player_weapons)}},
         )
         cpu = Ship(
             name=computer_cfg["name"],
             max_hp=int(computer_cfg["max_hp"]),
             hp=int(computer_cfg["max_hp"]),
-            weapons=self._build_weapons_from_config(computer_cfg),
+            weapons=cpu_weapons,
             x=map_center_x,
             y=map_center_y - self.screen_h / 4.0,
             heading=180.0,
             rotation_speed_deg_s=float(computer_cfg["rotation_speed_deg_s"]),
+            shield_max_hp=cpu_shield_max_hp,
+            shields=list(computer_cfg.get("shields", [cpu_shield_max_hp] * 6)),
+            systems={"weapons": {"current": len(cpu_weapons), "max": len(cpu_weapons)}},
         )
         return player, cpu
 
