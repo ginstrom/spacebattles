@@ -134,21 +134,36 @@ def draw_info_card(
 
     bar_h = 10
     bar_w = content_w
-    pygame.draw.rect(surf, (50, 55, 75),
-                     (tx, ty, bar_w, bar_h), border_radius=5)
-    fill_w = int(bar_w * max(0, ship.hp) /
-                 ship.max_hp) if ship.max_hp > 0 else 0
+    pygame.draw.rect(surf, (50, 55, 75), (tx, ty, bar_w, bar_h), border_radius=5)
+    fill_w = int(bar_w * max(0, ship.hull_hp) / ship.hull_max_hp) if ship.hull_max_hp > 0 else 0
     if fill_w > 0:
         pygame.draw.rect(
-            surf, hp_color(ship.hp, ship.max_hp),
+            surf, hp_color(ship.hull_hp, ship.hull_max_hp),
             (tx, ty, fill_w, bar_h), border_radius=5,
         )
     ty += bar_h + 4
 
-    hp_str = f"HP: {ship.hp} / {ship.max_hp}"
-    hp_surf = font.render(hp_str, True, hp_color(ship.hp, ship.max_hp))
+    hull_str = f"Hull: {ship.hull_hp} / {ship.hull_max_hp}"
+    hp_surf = font.render(hull_str, True, hp_color(ship.hull_hp, ship.hull_max_hp))
     surf.blit(hp_surf, (tx, ty))
     ty += line_h + 6
+
+    shields = list(ship.shields[:6]) if ship.shields else [0] * 6
+    while len(shields) < 6:
+        shields.append(0)
+    shield_max = max(1, int(ship.shield_max_hp))
+    shield_cols = 3
+    shield_col_w = content_w // shield_cols
+    for idx, value in enumerate(shields):
+        row = idx // shield_cols
+        col = idx % shield_cols
+        sx = tx + col * shield_col_w
+        sy = ty + row * line_h
+        shield_label = f"S{idx + 1}: {value}/{shield_max}"
+        shield_color = hp_color(value, shield_max)
+        shield_surf = font.render(shield_label, True, shield_color)
+        surf.blit(shield_surf, (sx, sy))
+    ty += (2 * line_h) + 6
 
     weapons_label = font.render("Weapons:", True, GRAY)
     surf.blit(weapons_label, (tx, ty))

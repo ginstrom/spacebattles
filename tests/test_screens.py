@@ -158,8 +158,9 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(self.screen.player.hp, 750)
         self.assertEqual(self.screen.player.hull_max_hp, 750)
         self.assertEqual(self.screen.player.hull_hp, 750)
+        self.assertEqual(self.screen.player.shield_max_hp, 120)
         self.assertEqual(len(self.screen.player.shields), 6)
-        self.assertTrue(all(v == self.screen.player.shield_max_hp for v in self.screen.player.shields))
+        self.assertEqual(self.screen.player.shields, [120, 120, 100, 120, 120, 110])
         self.assertIn("weapons", self.screen.player.systems)
         self.assertEqual(
             self.screen.player.systems["weapons"]["max"],
@@ -170,8 +171,36 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(self.screen.cpu.hp, 500)
         self.assertEqual(self.screen.cpu.hull_max_hp, 500)
         self.assertEqual(self.screen.cpu.hull_hp, 500)
+        self.assertEqual(self.screen.cpu.shield_max_hp, 90)
         self.assertEqual(len(self.screen.cpu.shields), 6)
+        self.assertEqual(self.screen.cpu.shields, [90, 90, 90, 75, 90, 90])
         self.assertIn("weapons", self.screen.cpu.systems)
+
+    def test_make_game_uses_configured_shield_values(self):
+        self.screen.ship_configs["player"]["shield_max_hp"] = 120
+        self.screen.ship_configs["player"]["shields"] = [10, 20, 30, 40, 50, 60]
+        self.screen.ship_configs["computer"]["shield_max_hp"] = 80
+        self.screen.ship_configs["computer"]["shields"] = [80, 70, 60, 50, 40, 30]
+
+        player, cpu = self.screen._make_game()
+
+        self.assertEqual(player.shield_max_hp, 120)
+        self.assertEqual(player.shields, [10, 20, 30, 40, 50, 60])
+        self.assertEqual(cpu.shield_max_hp, 80)
+        self.assertEqual(cpu.shields, [80, 70, 60, 50, 40, 30])
+
+    def test_make_game_defaults_shields_when_config_missing(self):
+        self.screen.ship_configs["player"].pop("shield_max_hp", None)
+        self.screen.ship_configs["player"].pop("shields", None)
+        self.screen.ship_configs["computer"].pop("shield_max_hp", None)
+        self.screen.ship_configs["computer"].pop("shields", None)
+
+        player, cpu = self.screen._make_game()
+
+        self.assertEqual(player.shield_max_hp, 100)
+        self.assertEqual(player.shields, [100] * 6)
+        self.assertEqual(cpu.shield_max_hp, 100)
+        self.assertEqual(cpu.shields, [100] * 6)
 
     def test_player_turn_rate_is_faster_than_cpu(self):
         self.assertLess(self.screen.player.rotation_speed_deg_s, 90.0)

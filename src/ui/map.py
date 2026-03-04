@@ -20,6 +20,46 @@ class Map:
         self.stars = stars
 
     @staticmethod
+    def _shield_segment_width(ship: Ship, shield_idx: int) -> int:
+        if ship.shield_max_hp <= 0:
+            return 1
+        value = max(0, min(ship.shields[shield_idx], ship.shield_max_hp))
+        ratio = value / float(ship.shield_max_hp)
+        return max(1, int(round(1 + ratio * 5)))
+
+    def _draw_shield_segments(
+        self,
+        surf: pygame.Surface,
+        ship: Ship,
+        cx: int,
+        cy: int,
+        color: tuple[int, int, int],
+        radius: int,
+    ) -> None:
+        rect = pygame.Rect(cx - radius, cy - radius, radius * 2, radius * 2)
+        segment_span_deg = 60.0
+        half_segment_deg = segment_span_deg / 2.0
+        gap_deg = 6.0
+        for idx in range(6):
+            center_heading_deg = (ship.heading + (idx * segment_span_deg)) % 360.0
+            start_heading_deg = center_heading_deg - half_segment_deg + (gap_deg / 2.0)
+            end_heading_deg = center_heading_deg + half_segment_deg - (gap_deg / 2.0)
+            # Convert from game heading (0=up, clockwise-positive)
+            # to pygame arc angle basis (0=right).
+            start_rad = math.radians(90.0 - end_heading_deg)
+            end_rad = math.radians(90.0 - start_heading_deg)
+            if end_rad <= start_rad:
+                end_rad += 2.0 * math.pi
+            pygame.draw.arc(
+                surf,
+                color,
+                rect,
+                start_rad,
+                end_rad,
+                self._shield_segment_width(ship, idx),
+            )
+
+    @staticmethod
     def _predict_turn_limited_route(
         player: Ship,
         waypoints: list[tuple[float, float]],
@@ -157,8 +197,7 @@ class Map:
         cpu_cy = int(cpu.y - view_y)
         icon_size = SHIP_ICON_SIZE
         if is_running and winner is None:
-            pygame.draw.circle(surf, BLUE, (cpu_cx, cpu_cy),
-                               icon_size // 2 + 10, 2)
+            self._draw_shield_segments(surf, cpu, cpu_cx, cpu_cy, BLUE, icon_size // 2 + 10)
         draw_enemy_icon(surf, cpu_cx, cpu_cy, icon_size, cpu.heading)
         name_surf = small_font.render(cpu.name, True, WHITE)
         surf.blit(name_surf, name_surf.get_rect(
@@ -168,8 +207,14 @@ class Map:
         player_cx = int(player.x - view_x)
         player_cy = int(player.y - view_y)
         if is_running and winner is None:
-            pygame.draw.circle(
-                surf, BLUE, (player_cx, player_cy), icon_size // 2 + 10, 2)
+            self._draw_shield_segments(
+                surf,
+                player,
+                player_cx,
+                player_cy,
+                BLUE,
+                icon_size // 2 + 10,
+            )
         draw_player_icon(surf, player_cx, player_cy, icon_size, player.heading)
         p_name_surf = small_font.render(player.name, True, WHITE)
         p_name_rect = p_name_surf.get_rect(
