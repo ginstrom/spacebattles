@@ -2,6 +2,8 @@
 Reusable UI components for the game, including ship icons,
 info cards, and health bars.
 """
+import math
+from pathlib import Path
 import pygame
 from src.constants import (
     PANEL_BG,
@@ -13,32 +15,93 @@ from src.constants import (
 from src.utils.helpers import hp_color
 from src.models.ship import Ship
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_PLAYER_ICON_PATH = _PROJECT_ROOT / "assets/images/ships/player_default.png"
+_ENEMY_ICON_PATH = _PROJECT_ROOT / "assets/images/ships/computer_default.png"
+_ICON_CACHE: dict[tuple[str, int], pygame.Surface | None] = {}
 
-def draw_enemy_icon(surf: pygame.Surface, cx: int, cy: int, size: int) -> None:
+
+def _load_icon_surface(path: Path, size: int) -> pygame.Surface | None:
+    key = (str(path), size)
+    if key in _ICON_CACHE:
+        return _ICON_CACHE[key]
+
+    if not path.exists():
+        _ICON_CACHE[key] = None
+        return None
+
+    try:
+        loaded = pygame.image.load(str(path))
+        _ICON_CACHE[key] = pygame.transform.smoothscale(loaded, (size, size))
+    except pygame.error:
+        _ICON_CACHE[key] = None
+    return _ICON_CACHE[key]
+
+
+def get_enemy_icon_surface(size: int) -> pygame.Surface | None:
+    return _load_icon_surface(_ENEMY_ICON_PATH, size)
+
+
+def get_player_icon_surface(size: int) -> pygame.Surface | None:
+    return _load_icon_surface(_PLAYER_ICON_PATH, size)
+
+
+def draw_enemy_icon(
+    surf: pygame.Surface,
+    cx: int,
+    cy: int,
+    size: int,
+    heading_deg: float = 0.0,
+) -> None:
+    icon = get_enemy_icon_surface(size)
+    if icon is not None:
+        rotated_icon = pygame.transform.rotate(icon, -heading_deg)
+        surf.blit(rotated_icon, rotated_icon.get_rect(center=(cx, cy)))
+        return
+
     half = size // 2
     points = [
-        (cx, cy + half),
-        (cx - half, cy - half),
-        (cx + half, cy - half),
+        (0.0, -float(half)),
+        (-float(half), float(half)),
+        (float(half), float(half)),
     ]
-    pygame.draw.polygon(surf, (90, 130, 200), points)
-    pygame.draw.polygon(surf, PANEL_BORDER, points, 2)
+    theta = math.radians(heading_deg)
+    sin_t = math.sin(theta)
+    cos_t = math.cos(theta)
+    rotated_points = [
+        (
+            int(round(cx + px * cos_t - py * sin_t)),
+            int(round(cy + px * sin_t + py * cos_t)),
+        )
+        for px, py in points
+    ]
+    pygame.draw.polygon(surf, (90, 130, 200), rotated_points)
+    pygame.draw.polygon(surf, PANEL_BORDER, rotated_points, 2)
 
 
 def draw_player_icon(
         surf: pygame.Surface,
         cx: int,
         cy: int,
-        size: int) -> None:
-    half = size // 2
-    pygame.draw.circle(surf, (180, 110, 70), (cx, cy), half)
-    pygame.draw.circle(surf, PANEL_BORDER, (cx, cy), half, 2)
-    head_r = max(4, size // 9)
-    head_cy = cy - half // 3
-    pygame.draw.circle(surf, WHITE, (cx, head_cy), head_r)
-    body_top = head_cy + head_r
-    body_bot = cy + half // 3
-    pygame.draw.line(surf, WHITE, (cx, body_top), (cx, body_bot), 2)
+        size: int,
+        heading_deg: float = 0.0) -> None:
+    icon = get_player_icon_surface(size)
+    if icon is None:
+        icon = pygame.Surface((size, size), pygame.SRCALPHA)
+        half = size // 2
+        icx = size // 2
+        icy = size // 2
+        pygame.draw.circle(icon, (180, 110, 70), (icx, icy), half)
+        pygame.draw.circle(icon, PANEL_BORDER, (icx, icy), half, 2)
+        head_r = max(4, size // 9)
+        head_cy = icy - half // 3
+        pygame.draw.circle(icon, WHITE, (icx, head_cy), head_r)
+        body_top = head_cy + head_r
+        body_bot = icy + half // 3
+        pygame.draw.line(icon, WHITE, (icx, body_top), (icx, body_bot), 2)
+
+    rotated_icon = pygame.transform.rotate(icon, -heading_deg)
+    surf.blit(rotated_icon, rotated_icon.get_rect(center=(cx, cy)))
 
 
 def draw_info_card(
@@ -53,6 +116,7 @@ def draw_info_card(
     ui_elements_out: dict[str, pygame.Rect],
     weapon_detail_toggles_out: dict[int, pygame.Rect],
     expanded_weapons: set[int],
+    queued_weapon_indices: set[int] | None = None,
 ) -> None:
     border_color = BLUE if (is_running and winner is None) else PANEL_BORDER
     pygame.draw.rect(surf, PANEL_BG, rect, border_radius=12)
@@ -99,6 +163,12 @@ def draw_info_card(
     for i, w in enumerate(ship.weapons):
         # Main weapon button
         # Player can fire; CPU uses the same active/inactive visual affordance.
+        is_queued = (
+            is_player
+            and queued_weapon_indices is not None
+            and i in queued_weapon_indices
+            and winner is None
+        )
         is_weapon_active = (
             is_running
             and w.can_fire()
@@ -109,10 +179,14 @@ def draw_info_card(
             and is_weapon_active
         )
         color = BLUE if is_weapon_active else (50, 55, 75)
+        if is_queued:
+            color = (210, 140, 55)
         text_color = WHITE if (
             can_fire_now or not is_player) else (160, 160, 160)
+        if is_queued:
+            text_color = WHITE
 
-        label = w.name
+        label = f"[Q] {w.name}" if is_queued else w.name
         if w.current_cooldown_seconds > 0:
             label += f" ({w.current_cooldown_seconds:.1f}s)"
         elif w.charges is not None:

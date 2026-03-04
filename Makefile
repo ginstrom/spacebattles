@@ -10,15 +10,15 @@ help:
 	@echo "clean : Remove python cache files"
 
 run:
-	python3 -m src.main
+	uv run python -m src.main
 
 test:
-	PYTHONPATH=. python3 -m coverage run --source=src -m unittest discover tests
-	python3 -m coverage report -m
+	PYTHONPATH=. uv run python -m coverage run --source=src -m unittest discover tests
+	uv run python -m coverage report -m
 
 test-docs:
 	PYTHONPATH=. phmdoctest docs/manual.md --outfile tests/test_manual.py
-	PYTHONPATH=. python3 -m pytest tests/test_manual.py
+	PYTHONPATH=. uv run python -m pytest tests/test_manual.py
 	rm tests/test_manual.py
 
 clean:

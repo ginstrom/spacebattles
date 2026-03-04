@@ -33,11 +33,22 @@ class TestCombat(unittest.TestCase):
         s.take_damage(100)
         self.assertEqual(s.hp, 0)
         self.assertTrue(s.is_dead())
+        self.assertEqual(s.hull_hp, 0)
+
+    def test_ship_initializes_hull_shields_and_systems(self):
+        s = Ship("Test", 100, 100, [])
+        self.assertEqual(s.hull_max_hp, 100)
+        self.assertEqual(s.hull_hp, 100)
+        self.assertEqual(s.shield_max_hp, 100)
+        self.assertEqual(len(s.shields), 6)
+        self.assertTrue(all(v == 100 for v in s.shields))
+        self.assertIn("weapons", s.systems)
 
     def test_combat_system(self):
         w = Weapon("Laser", (10, 10), cooldown=1, hit_chance=100, charges=1)
         attacker = Ship("Attacker", 100, 100, [w])
         defender = Ship("Defender", 100, 100, [])
+        defender.shields = [0, 0, 0, 0, 0, 0]
 
         success, dmg = CombatSystem.execute_attack(attacker, w, defender)
         self.assertTrue(success)
@@ -53,6 +64,48 @@ class TestCombat(unittest.TestCase):
         success, dmg = CombatSystem.execute_attack(attacker, w, defender)
         self.assertFalse(success)
         self.assertEqual(dmg, 0)
+
+    def test_directional_shield_absorbs_damage_before_hull(self):
+        w = Weapon("Laser", (10, 10), cooldown=1, hit_chance=100, charges=1)
+        attacker = Ship("Attacker", 100, 100, [w], x=0.0, y=-100.0)
+        defender = Ship("Defender", 100, 100, [], x=0.0, y=0.0, heading=0.0)
+        defender.shields = [20, 20, 20, 20, 20, 20]
+
+        success, _ = CombatSystem.execute_attack(attacker, w, defender)
+        self.assertTrue(success)
+        self.assertEqual(defender.shields[0], 10)
+        self.assertEqual(defender.hull_hp, 100)
+
+    def test_overflow_damage_uses_70_30_hull_system_split(self):
+        w = Weapon("Laser", (10, 10), cooldown=1, hit_chance=100, charges=1)
+        attacker = Ship("Attacker", 100, 100, [w], x=0.0, y=-100.0)
+        defender = Ship(
+            "Defender",
+            100,
+            100,
+            [],
+            x=0.0,
+            y=0.0,
+            heading=0.0,
+            systems={"weapons": {"current": 10, "max": 10}},
+        )
+        defender.shields = [0, 20, 20, 20, 20, 20]
+
+        success, _ = CombatSystem.execute_attack(attacker, w, defender)
+        self.assertTrue(success)
+        self.assertEqual(defender.hull_hp, 93)
+        self.assertEqual(defender.systems["weapons"]["current"], 7)
+
+    def test_ship_destroyed_when_hull_reaches_zero(self):
+        w = Weapon("Laser", (10, 10), cooldown=1, hit_chance=100, charges=1)
+        attacker = Ship("Attacker", 100, 100, [w], x=0.0, y=-100.0)
+        defender = Ship("Defender", 5, 5, [], x=0.0, y=0.0, heading=0.0)
+        defender.shields = [0, 0, 0, 0, 0, 0]
+
+        success, _ = CombatSystem.execute_attack(attacker, w, defender)
+        self.assertTrue(success)
+        self.assertEqual(defender.hull_hp, 0)
+        self.assertTrue(defender.is_dead())
 
 
 if __name__ == '__main__':

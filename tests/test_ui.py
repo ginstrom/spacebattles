@@ -4,7 +4,7 @@ import pygame
 from src.ui.map import Map
 from src.models.ship import Ship
 from src.models.weapon import Weapon
-from src.constants import HEIGHT, SHIP_ICON_SIZE
+from src.constants import HEIGHT
 
 
 class TestUI(unittest.TestCase):
@@ -12,6 +12,7 @@ class TestUI(unittest.TestCase):
         self.stars = [(10, 10, 255, 1), (20, 20, 200, 3)]
         self.map_obj = Map(self.stars)
         self.mock_surf = MagicMock(spec=pygame.Surface)
+        self.mock_surf.get_height.return_value = HEIGHT
         self.mock_font = MagicMock(spec=pygame.font.Font)
         self.mock_small_font = MagicMock(spec=pygame.font.Font)
 
@@ -25,9 +26,13 @@ class TestUI(unittest.TestCase):
         self.mock_font.get_linesize.return_value = 20
 
         self.player = Ship("Player", 100, 100, [
-                           Weapon("Laser", (10, 20), 1, 100, 0, 5)])
+                           Weapon("Laser", (10, 20), 1, 100, 0, 5)],
+                           x=400.0, y=HEIGHT * 3 / 4, heading=0.0)
         self.cpu = Ship("CPU", 100, 100, [
-                        Weapon("Laser", (10, 20), 1, 100, 0, 5)])
+                        Weapon("Laser", (10, 20), 1, 100, 0, 5),
+                        Weapon("Laser", (10, 20), 1, 100, 0, 5),
+                        Weapon("Laser", (10, 20), 1, 100, 0, 5)],
+                        x=400.0, y=HEIGHT / 4, heading=180.0)
 
     @patch('src.ui.map.draw_enemy_icon')
     @patch('src.ui.map.draw_player_icon')
@@ -68,13 +73,98 @@ class TestUI(unittest.TestCase):
         # Verify icons were drawn
         mock_enemy_icon.assert_called_once()
         mock_player_icon.assert_called_once()
+        self.assertEqual(mock_enemy_icon.call_args[0][4], self.cpu.heading)
+        self.assertEqual(mock_player_icon.call_args[0][4], self.player.heading)
+
+    @patch('src.ui.map.draw_player_icon')
+    @patch('pygame.draw.line')
+    def test_map_draw_ghost_route(self, mock_line, mock_player_icon):
+        waypoints = [(500.0, 600.0), (600.0, 650.0)]
+        test_surface = pygame.Surface((800, HEIGHT))
+        self.mock_small_font.render.return_value = pygame.Surface((50, 20))
+        self.map_obj.draw(
+            test_surface,
+            800,
+            self.player,
+            self.cpu,
+            False,
+            None,
+            self.mock_font,
+            self.mock_small_font,
+            waypoints,
+        )
+
+        # Regular player icon + ghost icon render.
+        self.assertGreaterEqual(mock_player_icon.call_count, 2)
+        self.assertTrue(mock_line.called)
+
+    def test_predict_turn_limited_route_accounts_for_turn_rate(self):
+        player = Ship(
+            "Player",
+            100,
+            100,
+            [Weapon("Laser", (10, 20), 1, 100, 0, 5)],
+            x=400.0,
+            y=600.0,
+            heading=0.0,
+            speed_px_s=100.0,
+            rotation_speed_deg_s=20.0,
+        )
+        waypoints = [(700.0, 600.0)]
+
+        route = self.map_obj._predict_turn_limited_route(player, waypoints)
+
+        self.assertGreater(len(route), 2)
+        self.assertEqual(route[0], (400.0, 600.0))
+        self.assertEqual(route[-1], (700.0, 600.0))
+        self.assertTrue(any(y < 600.0 for _, y in route[1:-1]))
+
+    @patch('src.ui.map.draw_enemy_icon')
+    @patch('src.ui.map.draw_player_icon')
+    @patch('pygame.draw.circle')
+    @patch('pygame.draw.line')
+    def test_map_draw_uses_surface_height_for_clip_and_border(
+        self,
+        mock_line,
+        mock_circle,
+        mock_player_icon,
+        mock_enemy_icon,
+    ):
+        self.mock_surf.get_height.return_value = 1080
+        self.map_obj.draw(
+            self.mock_surf,
+            1000,
+            self.player,
+            self.cpu,
+            True,
+            None,
+            self.mock_font,
+            self.mock_small_font,
+        )
+
+        clip_args = [call.args[0] for call in self.mock_surf.set_clip.call_args_list]
+        self.assertTrue(
+            any(
+                isinstance(c, pygame.Rect)
+                and c.width == 1000
+                and c.height == 1080
+                for c in clip_args
+                if c is not None
+            )
+        )
+        border_calls = [
+            call for call in mock_line.call_args_list
+            if len(call.args) >= 4 and call.args[2] == (1000, 0)
+        ]
+        self.assertTrue(border_calls)
+        self.assertEqual(border_calls[-1].args[3], (1000, 1080))
 
     @patch('src.ui.map.draw_enemy_icon')
     @patch('src.ui.map.draw_player_icon')
     @patch('pygame.draw.circle')
     @patch('pygame.draw.line')
     @patch('pygame.draw.rect')
-    def test_map_player_hp_bar_does_not_overlap_player_name(
+    def test_map_draw_does_not_render_ship_hp_bars(
         self,
         mock_rect,
         mock_line,
@@ -88,34 +178,44 @@ class TestUI(unittest.TestCase):
         )
 
         background_bar_rects = [
-            call.args[2]
-            for call in mock_rect.call_args_list
-            if call.args[1] == (60, 60, 80)
+            call for call in mock_rect.call_args_list if call.args[1] == (60, 60, 80)
         ]
-        self.assertEqual(len(background_bar_rects), 2)
-        player_bar_rect = max(background_bar_rects, key=lambda rect: rect[1])
-
-        player_cy = HEIGHT * 3 // 4
-        icon_size = SHIP_ICON_SIZE
-        name_height = self.mock_small_font.render.return_value.get_height()
-        name_bottom = player_cy - icon_size // 2 - 12
-        name_top = name_bottom - name_height
-
-        # Keep 4px visual gap between player name and HP bar.
-        self.assertLessEqual(
-            player_bar_rect[1] + player_bar_rect[3], name_top - 4)
+        self.assertEqual(background_bar_rects, [])
 
     @patch('pygame.draw.polygon')
     def test_draw_enemy_icon(self, mock_polygon):
         from src.ui.elements import draw_enemy_icon
-        draw_enemy_icon(self.mock_surf, 100, 100, 64)
+        with patch("src.ui.elements.get_enemy_icon_surface", return_value=None):
+            draw_enemy_icon(self.mock_surf, 100, 100, 64)
         self.assertEqual(mock_polygon.call_count, 2)
+
+    @patch('pygame.transform.rotate')
+    def test_draw_enemy_icon_uses_sprite_when_available(self, mock_rotate):
+        from src.ui.elements import draw_enemy_icon
+        icon = pygame.Surface((64, 64), pygame.SRCALPHA)
+        mock_rotate.return_value = icon
+        with patch("src.ui.elements.get_enemy_icon_surface", return_value=icon):
+            draw_enemy_icon(self.mock_surf, 100, 100, 64)
+
+        mock_rotate.assert_called_once_with(icon, -0.0)
+        self.mock_surf.blit.assert_called_once()
+
+    @patch('pygame.transform.rotate')
+    def test_draw_enemy_icon_applies_heading_rotation(self, mock_rotate):
+        from src.ui.elements import draw_enemy_icon
+        icon = pygame.Surface((64, 64), pygame.SRCALPHA)
+        mock_rotate.return_value = icon
+        with patch("src.ui.elements.get_enemy_icon_surface", return_value=icon):
+            draw_enemy_icon(self.mock_surf, 100, 100, 64, heading_deg=90.0)
+
+        mock_rotate.assert_called_once_with(icon, -90.0)
 
     @patch('pygame.draw.circle')
     @patch('pygame.draw.line')
     def test_draw_player_icon(self, mock_line, mock_circle):
         from src.ui.elements import draw_player_icon
-        draw_player_icon(self.mock_surf, 100, 100, 64)
+        with patch("src.ui.elements.get_player_icon_surface", return_value=None):
+            draw_player_icon(self.mock_surf, 100, 100, 64)
         self.assertEqual(mock_circle.call_count, 3)
         mock_line.assert_called_once()
 
@@ -170,8 +270,8 @@ class TestUI(unittest.TestCase):
             detail_toggles,
             expanded)
 
-        self.assertEqual(len(weapon_buttons), 1)  # CPU has 1 weapon
-        self.assertEqual(len(detail_toggles), 1)
+        self.assertEqual(len(weapon_buttons), 3)  # CPU has 3 weapons
+        self.assertEqual(len(detail_toggles), 3)
         self.assertEqual(len(ui_elements), 0)  # CPU has no "End Turn" button
         self.assertTrue(mock_rect.called)
 

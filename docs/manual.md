@@ -7,10 +7,29 @@ When you launch the game, you will see the enemy ship (top) and your ship
 
 1. The game starts paused.
 2. Press `Space` to start or pause real-time combat.
-3. While running, click any ready weapon on your ship card to fire it.
-4. The computer fires automatically at intervals while the game is running.
-5. Weapon cooldowns are shown in seconds and tick down in real time.
-6. The battle ends when either ship reaches `0 HP`.
+3. While running, steer with `A` (turn left) and `D` (turn right).
+4. While running, click any ready weapon on your ship card to fire it.
+5. The computer steers toward you and fires automatically at intervals.
+6. Weapon cooldowns are shown in seconds and tick down in real time.
+7. The battle ends when either ship reaches `0 HP`.
+
+## Movement and Waypoints
+
+- Ship movement is continuous while unpaused.
+- Movement speed is fixed at `screen height / 20 seconds`.
+- Rotation speed is fixed at `90 degrees/second`.
+- `A` turns your ship left and `D` turns your ship right.
+- Your ship and the computer ship are clamped to map bounds.
+
+### Planning a Route While Paused
+
+1. Pause the game with `Space`.
+2. Add waypoints by clicking on the map (left- or right-click).
+3. A ghost route is drawn from your current position through all waypoints.
+4. A ghost ship marker appears at the final waypoint.
+5. A heading vector shows your current facing direction.
+6. Unpause with `Space`; your ship will steer toward the first waypoint and continue through the queue.
+7. Manual steering with `A` or `D` clears queued waypoints immediately.
 
 ## Editing User-Facing Configs (`data/weapons.yaml`)
 
