@@ -1,4 +1,5 @@
 import unittest
+import os
 from unittest.mock import MagicMock, patch
 import math
 import pygame
@@ -68,6 +69,15 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(new_game_rect.centerx, dynamic_w // 2)
         self.assertEqual(new_game_rect.y, dynamic_h // 2 + 20)
 
+    @patch.dict(os.environ, {"SPACEBATTLE_DEMO_SCRIPT": "1"})
+    def test_menu_screen_auto_starts_battle_in_demo_mode(self):
+        with patch("pygame.font.SysFont") as mock_sysfont:
+            mock_sysfont.return_value = MagicMock(spec=pygame.font.Font)
+            screen = MenuScreen(self.manager)
+        with patch.object(self.manager, "set_screen") as mock_set_screen:
+            screen.update(16)
+            mock_set_screen.assert_called_once()
+
     def _mouse_event(self, x=125, y=125):
         event = MagicMock()
         event.type = pygame.MOUSEBUTTONDOWN
@@ -87,6 +97,31 @@ class TestScreens(unittest.TestCase):
         self.assertTrue(self.screen.is_paused)
         self.assertIn("Paused", self.screen.message)
         self.assertIsNone(self.screen.winner)
+
+    @patch.dict(os.environ, {"SPACEBATTLE_DEMO_SCRIPT": "1"})
+    @patch("pygame.time.get_ticks")
+    def test_demo_script_unpauses_sets_waypoint_and_fires(self, mock_get_ticks):
+        mock_get_ticks.side_effect = [0, 900, 1700]
+
+        with patch("pygame.font.SysFont") as mock_sysfont:
+            mock_font = MagicMock(spec=pygame.font.Font)
+            mock_font.get_linesize.return_value = 20
+            mock_font.size.return_value = (50, 20)
+            mock_text_surf = MagicMock(spec=pygame.Surface)
+            mock_text_surf.get_width.return_value = 50
+            mock_text_surf.get_height.return_value = 20
+            mock_font.render.return_value = mock_text_surf
+            mock_sysfont.return_value = mock_font
+            screen = BattleScreen(self.manager)
+
+        with patch.object(screen, "_fire_player_weapon", return_value=True) as mock_fire:
+            screen.update(16)
+            screen.update(16)
+            screen.update(16)
+
+        self.assertFalse(screen.is_paused)
+        self.assertGreaterEqual(len(screen.waypoints), 1)
+        mock_fire.assert_called()
 
     @patch("pygame.key.stop_text_input")
     def test_battle_screen_stops_text_input_for_ime(self, mock_stop_text_input):

@@ -6,7 +6,7 @@ help:
 	@echo "---------------------------"
 	@echo "run   : Start the game"
 	@echo "test  : Run all unit tests"
-	@echo "capture-gif : Capture a 10-second gameplay GIF to assets/demo/gameplay.gif"
+	@echo "capture-gif : Capture scripted 10-second gameplay GIF with caption"
 	@echo "help  : Show this help message"
 	@echo "clean : Remove python cache files"
 
@@ -23,7 +23,7 @@ test-docs:
 	rm tests/test_manual.py
 
 capture-gif:
-	./scripts/capture_demo_gif.sh --duration 10 --output assets/demo/gameplay.gif --fps 20 --display :0.0 --geometry 1280x720
+	./scripts/capture_demo_gif.sh --duration 10 --output assets/demo/gameplay.gif --fps 20
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

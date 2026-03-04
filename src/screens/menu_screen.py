@@ -2,6 +2,7 @@
 A reusable menu screen for startup and game-over states.
 """
 import logging
+import os
 import pygame
 
 from src.constants import WIDTH, HEIGHT, PANEL_BG, PANEL_BORDER, WHITE, BLUE, RED
@@ -24,6 +25,10 @@ class MenuScreen(BaseScreen):
 
         self.buttons = {}
         self._setup_buttons()
+
+    def update(self, dt):
+        if os.getenv("SPACEBATTLE_DEMO_SCRIPT", "0") == "1" and self.result_message is None:
+            self.screen_manager.set_screen(BattleScreen)
 
     def _screen_size(self) -> tuple[int, int]:
         if hasattr(self.screen_manager, "screen") and hasattr(self.screen_manager.screen, "get_size"):
