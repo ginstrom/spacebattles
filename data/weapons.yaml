@@ -6,6 +6,10 @@ Laser:
   charges: null
   weapon_type: light
   firing_arc_deg: 120
+  accuracy_falloff_per_100px: 2.0
+  min_hit_chance: 70
+  damage_falloff_per_100px: 0.0
+  min_damage_multiplier: 1.0
 
 Ion Beam:
   damage_min: 80
@@ -15,3 +19,33 @@ Ion Beam:
   charges: null
   weapon_type: heavy
   firing_arc_deg: 60
+  accuracy_falloff_per_100px: 6.0
+  min_hit_chance: 35
+  damage_falloff_per_100px: 0.1
+  min_damage_multiplier: 0.4
+
+Hell Beam:
+  damage_min: 140
+  damage_max: 210
+  cooldown: 3
+  hit_chance: 72
+  charges: null
+  weapon_type: heavy
+  firing_arc_deg: 60
+  accuracy_falloff_per_100px: 8.0
+  min_hit_chance: 25
+  damage_falloff_per_100px: 0.22
+  min_damage_multiplier: 0.1
+
+Protom Beam:
+  damage_min: 70
+  damage_max: 110
+  cooldown: 6
+  hit_chance: 90
+  charges: null
+  weapon_type: light
+  firing_arc_deg: 120
+  accuracy_falloff_per_100px: 2.0
+  min_hit_chance: 70
+  damage_falloff_per_100px: 0.0
+  min_damage_multiplier: 1.0

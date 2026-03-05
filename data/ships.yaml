@@ -9,7 +9,7 @@ player:
       facing_deg: 0
     - name: Laser
       facing_deg: 0
-    - name: Ion Beam
+    - name: Protom Beam
       facing_deg: 0
 
 computer:
@@ -21,7 +21,7 @@ computer:
   weapons:
     - name: Laser
       facing_deg: 0
-    - name: Laser
+    - name: Hell Beam
       facing_deg: 0
     - name: Laser
       facing_deg: 0

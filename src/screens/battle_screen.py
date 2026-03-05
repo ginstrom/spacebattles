@@ -311,16 +311,20 @@ class BattleScreen(BaseScreen):
             )
             result.append(
                 Weapon(
-                    template.name,
-                    template.damage_range,
-                    template.cooldown,
-                    template.hit_chance,
-                    0,
-                    template.charges,
-                    template.weapon_type,
-                    template.tech_level,
-                    mount_firing_arc_deg,
-                    mount_facing_deg,
+                    name=template.name,
+                    damage_range=template.damage_range,
+                    cooldown=template.cooldown,
+                    hit_chance=template.hit_chance,
+                    current_cooldown_seconds=0,
+                    charges=template.charges,
+                    weapon_type=template.weapon_type,
+                    tech_level=template.tech_level,
+                    firing_arc_deg=mount_firing_arc_deg,
+                    facing_deg=mount_facing_deg,
+                    accuracy_falloff_per_100px=template.accuracy_falloff_per_100px,
+                    min_hit_chance=template.min_hit_chance,
+                    damage_falloff_per_100px=template.damage_falloff_per_100px,
+                    min_damage_multiplier=template.min_damage_multiplier,
                 )
             )
         return result
