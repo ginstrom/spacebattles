@@ -1,101 +1,120 @@
 # Space Battle Manual
 
-When you launch the game, you will see the enemy ship (top) and your ship
-(bottom). The right panel shows each ship status and weapon list.
+`Space Battle` is a real-time 1v1 cruiser duel. You pilot the Alliance cruiser, manage heading and route, and fire mount-specific weapons while a CPU opponent tracks and attacks you.
 
-## Battle Sequence
+## Regenerate Screenshots
 
-1. The game starts paused.
-2. Press `Space` to start or pause real-time combat.
-3. While running, steer with `A` (turn left) and `D` (turn right).
-4. While running, click any ready weapon on your ship card to fire it.
-5. The computer steers toward you and fires automatically at intervals.
-6. Weapon cooldowns are shown in seconds and tick down in real time.
-7. The battle ends when either ship reaches `0 HP`.
+All screenshots in this manual are generated from the game with a deterministic script:
 
-## Movement and Waypoints
+```bash
+make manual-screenshots
+```
 
-- Ship movement is continuous while unpaused.
-- Movement speed is fixed at `screen height / 20 seconds`.
-- Rotation speed is fixed at `90 degrees/second`.
-- `A` turns your ship left and `D` turns your ship right.
-- Your ship and the computer ship are clamped to map bounds.
+Generated images are written to `docs/images/manual/`.
 
-### Planning a Route While Paused
+## Getting Started
 
-1. Pause the game with `Space`.
-2. Add waypoints by clicking on the map (left- or right-click).
-3. A ghost route is drawn from your current position through all waypoints.
-4. A ghost ship marker appears at the final waypoint.
-5. A heading vector shows your current facing direction.
-6. Unpause with `Space`; your ship will steer toward the first waypoint and continue through the queue.
-7. Manual steering with `A` or `D` clears queued waypoints immediately.
+1. Install dependencies:
 
-## Editing User-Facing Configs (`data/weapons.yaml`)
+```bash
+uv sync
+```
 
-User-editable gameplay config currently lives in:
+2. Launch the game:
 
-- `data/weapons.yaml`
+```bash
+make run
+```
 
-Each top-level key is a weapon name, and each weapon supports:
+3. Start combat from the menu with `Enter`, `Space`, or mouse click on `NEW GAME`.
 
-- `damage_min` (int): minimum damage on a hit
-- `damage_max` (int): maximum damage on a hit
-- `cooldown` (int): cooldown in turns from config (`1 turn = 5 seconds` in-game)
-- `hit_chance` (int): percent hit chance from `1` to `100`
-- `charges` (int or `null`): finite shots, or `null` for infinite
+## Battle HUD and Layout
 
-Example:
+- Left side: zoomable battle map with ships, route preview, and combat effects.
+- Right side: CPU and player status cards, shield bars, and weapon controls/details.
+- Bottom panel text: current battle state and recent combat messages.
+
+![Battle overview](images/manual/battle-overview.png)
+
+## Controls
+
+- `Space`: pause/resume battle.
+- `A` / `D`: rotate ship left/right while unpaused.
+- `Left click` on map while paused:
+  - `Ctrl + Click`: replace route with one waypoint.
+  - `Shift + Click`: append waypoint to existing route.
+- `Ctrl+Z` / `Ctrl+Y`: undo/redo waypoint edits.
+- Mouse wheel: zoom map at cursor location.
+- `Esc`: open pause overlay (`RESUME` / `QUIT`).
+- Left click on your weapon buttons:
+  - unpaused: fire if available, otherwise queue.
+  - paused: queue/unqueue for auto-fire when legal.
+
+## Route Planning and Waypoints
+
+While paused, you can stage route changes before resuming combat. The game shows a turn-limited dashed preview and final ghost ship marker so you can estimate your future heading and position.
+
+![Waypoint planning](images/manual/waypoint-planning.png)
+
+Manual steering (`A`/`D`) immediately clears queued waypoints once the battle is running.
+
+## Combat Basics
+
+- Weapons have cooldowns in real seconds.
+- Firing consumes charges only when a weapon has finite ammo.
+- CPU auto-fires on cadence when a legal shot is available.
+- A battle ends when either ship hull reaches `0`.
+
+![Combat fire exchange](images/manual/combat-fire-exchange.png)
+
+## Weapon Arcs and Facing
+
+Each weapon has:
+
+- `Facing`: mount orientation offset from ship heading.
+- `Arc`: legal firing cone in degrees.
+
+Hovering a player weapon row renders the projected firing arc on the map.
+
+![Weapon arc preview](images/manual/weapon-arc-preview.png)
+
+## Zoom and Situational Awareness
+
+Map zoom is cursor-centered, so you can quickly inspect local maneuvering or zoom back out for strategic spacing.
+
+![Zoomed map](images/manual/zoomed-map.png)
+
+## Distance Falloff (Advanced)
+
+Weapon detail rows include distance scaling stats:
+
+- Accuracy falloff per `100px` plus minimum hit floor.
+- Damage falloff per `100px` plus minimum damage multiplier floor.
+
+These values determine how quickly long-range shots degrade.
+
+![Distance falloff details](images/manual/distance-falloff-details.png)
+
+## Configuration Reference
+
+Gameplay tuning is data-driven:
+
+- `data/weapons.yaml`: damage, cooldowns, arcs, facing defaults, and distance falloff.
+- `data/ships.yaml`: hull/shields, rotation speed, and per-mount weapon layout.
+
+Example weapon entry:
 
 ```yaml
-Laser:
-  damage_min: 40
-  damage_max: 70
-  cooldown: 2
-  hit_chance: 90
-  charges: null
-
 Ion Beam:
   damage_min: 80
   damage_max: 120
   cooldown: 3
   hit_chance: 75
   charges: null
-```
-
-## Technical Reference
-
-The game logic is modular. Here is an example of creating a ship and taking damage:
-
-```python
-from src.models.ship import Ship
-from src.models.weapon import Weapon
-
-# Create a ship with a laser
-laser = Weapon("Laser", (10, 20), cooldown=2, hit_chance=90, charges=5)
-ship = Ship("Testing Ship", 100, 100, [laser])
-
-# Apply damage
-ship.take_damage(30)
-assert ship.hp == 70
-
-# Weapon loader sample config parsing
-from pathlib import Path
-import tempfile
-
-sample = '''
-Test Laser:
-  damage_min: 12
-  damage_max: 20
-  cooldown: 1
-  hit_chance: 85
-  charges: 4
-'''
-with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
-    _ = f.write(sample)
-    temp_path = f.name
-
-loaded = Weapon.load_weapons(Path(temp_path))
-assert loaded["Test Laser"].damage_range == (12, 20)
-assert loaded["Test Laser"].charges == 4
+  weapon_type: heavy
+  firing_arc_deg: 60
+  accuracy_falloff_per_100px: 6.0
+  min_hit_chance: 35
+  damage_falloff_per_100px: 0.1
+  min_damage_multiplier: 0.4
 ```

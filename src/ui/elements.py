@@ -252,6 +252,16 @@ def draw_info_card(
                 f"Hit %: {w.hit_chance}%",
                 f"Arc: {w.firing_arc_deg:.0f}deg",
                 f"Facing: {w.facing_deg:.0f}deg",
+                (
+                    "Acc falloff: "
+                    f"-{w.accuracy_falloff_per_100px:.1f}%/100px "
+                    f"(min {w.min_hit_chance:.0f}%)"
+                ),
+                (
+                    "Dmg falloff: "
+                    f"-{w.damage_falloff_per_100px * 100.0:.1f}%/100px "
+                    f"(min {w.min_damage_multiplier * 100.0:.0f}%)"
+                ),
             ]
             for d_line in details:
                 d_surf = font.render(d_line, True, (200, 200, 200))

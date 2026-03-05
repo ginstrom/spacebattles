@@ -1,6 +1,18 @@
 # Space Battle
 
-A space game written using pygame.
+A fast, top-down 1v1 ship duel built with `pygame`.
+You pilot the bottom ship, queue movement waypoints, and fire weapons while a CPU opponent steers and attacks in real time.
+
+## Read the Manual
+
+Full controls and gameplay details are in the manual: [Space Battle Manual](docs/manual.md)
+
+## Quick Start
+
+```bash
+uv sync
+make run
+```
 
 ## Gameplay Demo
 

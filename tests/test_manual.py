@@ -77,3 +77,17 @@ Plasma Cannon:
     assert loaded["Plasma Cannon"].weapon_type == "heavy"
     assert loaded["Plasma Cannon"].firing_arc_deg == 60.0
     assert loaded["Plasma Cannon"].facing_deg == 0.0
+
+
+def test_manual_references_generated_screenshots():
+    manual_text = Path("docs/manual.md").read_text(encoding="utf-8")
+    expected_links = [
+        "images/manual/battle-overview.png",
+        "images/manual/waypoint-planning.png",
+        "images/manual/combat-fire-exchange.png",
+        "images/manual/weapon-arc-preview.png",
+        "images/manual/zoomed-map.png",
+        "images/manual/distance-falloff-details.png",
+    ]
+    for link in expected_links:
+        assert link in manual_text
