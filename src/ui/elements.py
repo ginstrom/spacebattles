@@ -251,6 +251,7 @@ def draw_info_card(
                 f"Damage: {w.damage_range[0]} - {w.damage_range[1]}",
                 f"Hit %: {w.hit_chance}%",
                 f"Arc: {w.firing_arc_deg:.0f}deg",
+                f"Facing: {w.facing_deg:.0f}deg",
             ]
             for d_line in details:
                 d_surf = font.render(d_line, True, (200, 200, 200))

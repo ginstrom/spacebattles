@@ -24,6 +24,7 @@ Test Laser:
   weapon_type: light
   tech_level: 2
   tech_arc_bonus_deg_per_level: 10
+  facing_deg: 15
 Ion Demo:
   damage_min: 20
   damage_max: 30
@@ -32,6 +33,7 @@ Ion Demo:
   charges: null
   weapon_type: heavy
   firing_arc_deg: 75
+  facing_deg: 180
 """
     cfg = tmp_path / "sample_weapons.yaml"
     cfg.write_text(sample)
@@ -45,11 +47,13 @@ Ion Demo:
     assert loaded["Test Laser"].weapon_type == "light"
     assert loaded["Test Laser"].tech_level == 2
     assert loaded["Test Laser"].firing_arc_deg == 130.0
+    assert loaded["Test Laser"].facing_deg == 15.0
 
     assert loaded["Ion Demo"].damage_range == (20, 30)
     assert loaded["Ion Demo"].charges is None
     assert loaded["Ion Demo"].weapon_type == "heavy"
     assert loaded["Ion Demo"].firing_arc_deg == 75.0
+    assert loaded["Ion Demo"].facing_deg == 180.0
 
 
 def test_manual_yaml_config_default_arc_uses_weapon_type_inference(tmp_path):
@@ -71,5 +75,7 @@ Plasma Cannon:
     loaded = Weapon.load_weapons(Path(cfg))
     assert loaded["Pulse Laser"].weapon_type == "light"
     assert loaded["Pulse Laser"].firing_arc_deg == 120.0
+    assert loaded["Pulse Laser"].facing_deg == 0.0
     assert loaded["Plasma Cannon"].weapon_type == "heavy"
     assert loaded["Plasma Cannon"].firing_arc_deg == 60.0
+    assert loaded["Plasma Cannon"].facing_deg == 0.0

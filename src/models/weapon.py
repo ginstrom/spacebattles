@@ -20,6 +20,7 @@ class Weapon:
     weapon_type: str = "heavy"
     tech_level: int = 1
     firing_arc_deg: float = 60.0
+    facing_deg: float = 0.0
 
     @staticmethod
     def _default_weapon_type(name: str) -> str:
@@ -45,6 +46,7 @@ class Weapon:
                 tech_arc_bonus = float(stats.get("tech_arc_bonus_deg_per_level", 0.0))
                 firing_arc_deg = base_arc + (tech_level - 1) * tech_arc_bonus
             firing_arc_deg = max(5.0, min(360.0, firing_arc_deg))
+            facing_deg = float(stats.get("facing_deg", 0.0)) % 360.0
             weapons[wname] = Weapon(
                 name=wname,
                 damage_range=(stats["damage_min"], stats["damage_max"]),
@@ -54,6 +56,7 @@ class Weapon:
                 weapon_type=weapon_type,
                 tech_level=tech_level,
                 firing_arc_deg=firing_arc_deg,
+                facing_deg=facing_deg,
             )
         return weapons
 

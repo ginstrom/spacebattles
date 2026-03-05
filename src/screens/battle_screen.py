@@ -48,7 +48,6 @@ class BattleScreen(BaseScreen):
         self.CPU_DELAY_MS = 900
         self.ATTACK_ANIM_MS = 240
         self.CPU_TRAIL_DISTANCE_PX = SHIP_ICON_SIZE * 2.0
-        self.MIN_SHIP_SEPARATION_PX = SHIP_ICON_SIZE * 1.2
         self.CPU_HEADING_FOLLOW_MIN_MS = 1000
         self.CPU_HEADING_FOLLOW_MAX_MS = 3000
 
@@ -160,28 +159,6 @@ class BattleScreen(BaseScreen):
         self.map_view_x = max(0.0, min(max_x, self.map_view_x))
         self.map_view_y = max(0.0, min(max_y, self.map_view_y))
 
-    def _enforce_minimum_ship_separation(self) -> None:
-        dx = self.player.x - self.cpu.x
-        dy = self.player.y - self.cpu.y
-        dist = math.hypot(dx, dy)
-        if dist >= self.MIN_SHIP_SEPARATION_PX:
-            return
-        if dist <= 1e-6:
-            dx, dy, dist = 1.0, 0.0, 1.0
-        nx = dx / dist
-        ny = dy / dist
-        push = (self.MIN_SHIP_SEPARATION_PX - dist) / 2.0
-
-        self.player.x += nx * push
-        self.player.y += ny * push
-        self.cpu.x -= nx * push
-        self.cpu.y -= ny * push
-
-        self.player.x = max(0.0, min(float(self.map_world_w), self.player.x))
-        self.player.y = max(0.0, min(float(self.map_world_h), self.player.y))
-        self.cpu.x = max(0.0, min(float(self.map_world_w), self.cpu.x))
-        self.cpu.y = max(0.0, min(float(self.map_world_h), self.cpu.y))
-
     @staticmethod
     def _heading_delta_deg(a: float, b: float) -> float:
         return abs((a - b + 180.0) % 360.0 - 180.0)
@@ -196,11 +173,16 @@ class BattleScreen(BaseScreen):
         dy = defender.y - attacker.y
         return math.degrees(math.atan2(dx, -dy)) % 360.0
 
+    @staticmethod
+    def _weapon_facing_world_heading(attacker: Ship, weapon: Weapon) -> float:
+        return (attacker.heading + weapon.facing_deg) % 360.0
+
     def _is_target_in_weapon_arc(self, attacker: Ship, defender: Ship, weapon: Weapon) -> bool:
         if weapon.firing_arc_deg >= 360.0:
             return True
         target_heading = self._heading_to_target(attacker, defender)
-        delta = self._signed_heading_delta_deg(target_heading, attacker.heading % 360.0)
+        facing_heading = self._weapon_facing_world_heading(attacker, weapon)
+        delta = self._signed_heading_delta_deg(target_heading, facing_heading)
         return abs(delta) <= (weapon.firing_arc_deg / 2.0)
 
     def _player_weapon_block_reason(self, weapon: Weapon) -> str | None:
@@ -304,6 +286,7 @@ class BattleScreen(BaseScreen):
                         template.weapon_type,
                         template.tech_level,
                         template.firing_arc_deg,
+                        template.facing_deg,
                     )
                 )
         return result
@@ -647,15 +630,6 @@ class BattleScreen(BaseScreen):
         target_x = self.player.x - player_forward_x * self.CPU_TRAIL_DISTANCE_PX
         target_y = self.player.y - player_forward_y * self.CPU_TRAIL_DISTANCE_PX
 
-        player_dx = self.player.x - self.cpu.x
-        player_dy = self.player.y - self.cpu.y
-        if math.hypot(player_dx, player_dy) < self.MIN_SHIP_SEPARATION_PX * 1.5:
-            side_sign = 1.0 if (player_dx * player_forward_y - player_dy * player_forward_x) >= 0 else -1.0
-            side_x = -player_forward_y * (self.CPU_TRAIL_DISTANCE_PX * 0.5) * side_sign
-            side_y = player_forward_x * (self.CPU_TRAIL_DISTANCE_PX * 0.5) * side_sign
-            target_x = self.player.x + side_x
-            target_y = self.player.y + side_y
-
         dx = target_x - self.cpu.x
         dy = target_y - self.cpu.y
         if dx != 0.0 or dy != 0.0:
@@ -673,7 +647,6 @@ class BattleScreen(BaseScreen):
         self.cpu.y -= math.cos(cpu_heading_rad) * self.cpu.speed_px_s * dt_seconds
         self.cpu.x = max(0.0, min(float(self.map_world_w), self.cpu.x))
         self.cpu.y = max(0.0, min(float(self.map_world_h), self.cpu.y))
-        self._enforce_minimum_ship_separation()
 
         if self.cpu_fire_at_ms is not None and now >= self.cpu_fire_at_ms:
             available_indices = [
@@ -812,11 +785,12 @@ class BattleScreen(BaseScreen):
         if cx < 0 or cx >= map_w or cy < 0 or cy >= self.screen_h:
             return
 
-        radius = SHIP_ICON_SIZE // 2 + 28
+        radius = int(max(SHIP_ICON_SIZE // 2 + 28, min(map_w, self.screen_h) * 0.42))
         rect = pygame.Rect(cx - radius, cy - radius, radius * 2, radius * 2)
         half_arc = weapon.firing_arc_deg / 2.0
-        start_heading = (self.player.heading - half_arc) % 360.0
-        end_heading = (self.player.heading + half_arc) % 360.0
+        center_heading = self._weapon_facing_world_heading(self.player, weapon)
+        start_heading = (center_heading - half_arc) % 360.0
+        end_heading = (center_heading + half_arc) % 360.0
         start_rad = math.radians(90.0 - end_heading)
         end_rad = math.radians(90.0 - start_heading)
         if end_rad <= start_rad:

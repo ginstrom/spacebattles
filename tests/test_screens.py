@@ -458,6 +458,23 @@ class TestScreens(unittest.TestCase):
             self.screen.update(16)
             mock_attack.assert_not_called()
 
+    def test_target_arc_uses_weapon_facing_offset(self):
+        weapon = self.screen.player.weapons[0]
+        weapon.firing_arc_deg = 60.0
+        self.screen.player.heading = 0.0
+        self.screen.cpu.x = self.screen.player.x
+
+        weapon.facing_deg = 180.0
+        self.screen.cpu.y = self.screen.player.y + 250.0
+        self.assertTrue(
+            self.screen._is_target_in_weapon_arc(self.screen.player, self.screen.cpu, weapon)
+        )
+
+        self.screen.cpu.y = self.screen.player.y - 250.0
+        self.assertFalse(
+            self.screen._is_target_in_weapon_arc(self.screen.player, self.screen.cpu, weapon)
+        )
+
     @patch("pygame.draw.rect")
     @patch("pygame.draw.line")
     @patch("pygame.time.get_ticks")
@@ -904,7 +921,7 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(self.screen.waypoints, [])
 
     @patch("pygame.time.get_ticks")
-    def test_ships_keep_minimum_separation_when_chasing(self, mock_get_ticks):
+    def test_ships_can_overlap_when_chasing(self, mock_get_ticks):
         mock_get_ticks.return_value = 1000
         self.screen.is_paused = False
         self.screen.cpu_fire_at_ms = None
@@ -917,7 +934,7 @@ class TestScreens(unittest.TestCase):
 
         self.screen.update(16)
         distance = math.hypot(self.screen.player.x - self.screen.cpu.x, self.screen.player.y - self.screen.cpu.y)
-        self.assertGreaterEqual(distance + 1e-6, self.screen.MIN_SHIP_SEPARATION_PX)
+        self.assertAlmostEqual(distance, 2.0, places=6)
 
     @patch("random.randint")
     @patch("pygame.time.get_ticks")
