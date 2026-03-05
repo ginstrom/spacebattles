@@ -34,6 +34,11 @@ class BattleScreen(BaseScreen):
         self.ship_configs = self._load_ship_configs("data/ships.yaml")
         self.map_world_w = int((self.screen_w - PANEL_W) * 3)
         self.map_world_h = int(self.screen_h * 3)
+        self.default_map_zoom = 1.0
+        self.min_map_zoom = 0.5
+        self.max_map_zoom = 2.5
+        self.map_zoom_step = 0.12
+        self.map_zoom = self.default_map_zoom
         self.map_view_x = (self.map_world_w - (self.screen_w - PANEL_W)) / 2.0
         self.map_view_y = (self.map_world_h - self.screen_h) / 2.0
         self.player, self.cpu = self._make_game()
@@ -116,7 +121,16 @@ class BattleScreen(BaseScreen):
         return 0 <= x <= self._current_map_width() and 0 <= y <= self.screen_h
 
     def _screen_to_world(self, pos: tuple[int, int]) -> tuple[float, float]:
-        return float(pos[0]) + self.map_view_x, float(pos[1]) + self.map_view_y
+        return (
+            (float(pos[0]) / self.map_zoom) + self.map_view_x,
+            (float(pos[1]) / self.map_zoom) + self.map_view_y,
+        )
+
+    def _world_to_screen(self, pos: tuple[float, float]) -> tuple[float, float]:
+        return (
+            (float(pos[0]) - self.map_view_x) * self.map_zoom,
+            (float(pos[1]) - self.map_view_y) * self.map_zoom,
+        )
 
     def _push_waypoint_undo_state(self) -> None:
         self.waypoint_undo_stack.append(list(self.waypoints))
@@ -153,11 +167,28 @@ class BattleScreen(BaseScreen):
         return self.waypoints
 
     def _clamp_map_view(self) -> None:
-        map_w = self._current_map_width()
+        map_w = self._current_map_width() / self.map_zoom
+        map_h = self.screen_h / self.map_zoom
         max_x = max(0.0, float(self.map_world_w - map_w))
-        max_y = max(0.0, float(self.map_world_h - self.screen_h))
+        max_y = max(0.0, float(self.map_world_h - map_h))
         self.map_view_x = max(0.0, min(max_x, self.map_view_x))
         self.map_view_y = max(0.0, min(max_y, self.map_view_y))
+
+    def _apply_zoom_at_cursor(self, zoom_direction: float, cursor_pos: tuple[int, int]) -> bool:
+        if zoom_direction == 0.0 or not self._is_map_point(cursor_pos):
+            return False
+        old_zoom = self.map_zoom
+        factor = 1.0 + (self.map_zoom_step * zoom_direction)
+        new_zoom = max(self.min_map_zoom, min(self.max_map_zoom, old_zoom * factor))
+        if abs(new_zoom - old_zoom) < 1e-6:
+            return False
+
+        world_x, world_y = self._screen_to_world(cursor_pos)
+        self.map_zoom = new_zoom
+        self.map_view_x = world_x - (float(cursor_pos[0]) / self.map_zoom)
+        self.map_view_y = world_y - (float(cursor_pos[1]) / self.map_zoom)
+        self._clamp_map_view()
+        return True
 
     @staticmethod
     def _heading_delta_deg(a: float, b: float) -> float:
@@ -272,23 +303,26 @@ class BattleScreen(BaseScreen):
         result: list[Weapon] = []
         for item in config.get("weapons", []):
             weapon_name = item["name"]
-            count = int(item.get("count", 1))
             template = self.available_weapons[weapon_name]
-            for _ in range(max(0, count)):
-                result.append(
-                    Weapon(
-                        template.name,
-                        template.damage_range,
-                        template.cooldown,
-                        template.hit_chance,
-                        0,
-                        template.charges,
-                        template.weapon_type,
-                        template.tech_level,
-                        template.firing_arc_deg,
-                        template.facing_deg,
-                    )
+            mount_facing_deg = float(item.get("facing_deg", 0.0)) % 360.0
+            mount_firing_arc_deg = max(
+                5.0,
+                min(360.0, float(item.get("firing_arc_deg", template.firing_arc_deg))),
+            )
+            result.append(
+                Weapon(
+                    template.name,
+                    template.damage_range,
+                    template.cooldown,
+                    template.hit_chance,
+                    0,
+                    template.charges,
+                    template.weapon_type,
+                    template.tech_level,
+                    mount_firing_arc_deg,
+                    mount_facing_deg,
                 )
+            )
         return result
 
     def _fire_player_weapon(self, weapon_idx: int, now_ms: int) -> bool:
@@ -404,6 +438,7 @@ class BattleScreen(BaseScreen):
                 self.cpu_follow_heading_deg = self.player.heading
                 self.cpu_pending_follow_heading_deg = None
                 self.cpu_follow_heading_apply_at_ms = 0
+                self.map_zoom = self.default_map_zoom
                 self.map_dragging = False
                 self.map_drag_last_pos = None
                 self.pause_menu_visible = False
@@ -464,13 +499,27 @@ class BattleScreen(BaseScreen):
             if self.map_drag_last_pos is not None:
                 dx = event.pos[0] - self.map_drag_last_pos[0]
                 dy = event.pos[1] - self.map_drag_last_pos[1]
-                self.map_view_x -= float(dx)
-                self.map_view_y -= float(dy)
+                self.map_view_x -= float(dx) / self.map_zoom
+                self.map_view_y -= float(dy) / self.map_zoom
                 self._clamp_map_view()
             self.map_drag_last_pos = event.pos
             return
         if event.type == pygame.MOUSEMOTION:
             self._update_hovered_player_weapon(event.pos)
+            return
+
+        if event.type == pygame.MOUSEWHEEL:
+            cursor_pos = pygame.mouse.get_pos()
+            if self._apply_zoom_at_cursor(float(event.y), cursor_pos):
+                self.map_dragging = False
+                self.map_drag_last_pos = None
+            return
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button in (4, 5):
+            direction = 1.0 if event.button == 4 else -1.0
+            if self._apply_zoom_at_cursor(direction, event.pos):
+                self.map_dragging = False
+                self.map_drag_last_pos = None
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.pause_menu_visible:
@@ -704,10 +753,8 @@ class BattleScreen(BaseScreen):
             self.demo_waypoint_targets = [target_1, target_2]
 
         if self.demo_script_step == 0 and elapsed_ms >= 600:
-            self.demo_cursor_screen_pos = (
-                int(round(self.demo_waypoint_targets[0][0] - self.map_view_x)),
-                int(round(self.demo_waypoint_targets[0][1] - self.map_view_y)),
-            )
+            demo_cursor = self._world_to_screen(self.demo_waypoint_targets[0])
+            self.demo_cursor_screen_pos = (int(round(demo_cursor[0])), int(round(demo_cursor[1])))
             self.demo_script_step = 1
 
         if self.demo_script_step == 1 and elapsed_ms >= 900:
@@ -716,10 +763,8 @@ class BattleScreen(BaseScreen):
             self.demo_script_step = 2
 
         if self.demo_script_step == 2 and elapsed_ms >= 1200:
-            self.demo_cursor_screen_pos = (
-                int(round(self.demo_waypoint_targets[1][0] - self.map_view_x)),
-                int(round(self.demo_waypoint_targets[1][1] - self.map_view_y)),
-            )
+            demo_cursor = self._world_to_screen(self.demo_waypoint_targets[1])
+            self.demo_cursor_screen_pos = (int(round(demo_cursor[0])), int(round(demo_cursor[1])))
             self.demo_script_step = 3
 
         if self.demo_script_step == 3 and elapsed_ms >= 1500:
@@ -750,6 +795,7 @@ class BattleScreen(BaseScreen):
             self._preview_waypoints_for_draw(),
             self.map_view_x,
             self.map_view_y,
+            zoom=self.map_zoom,
         )
         self._draw_attack_animation(screen, map_w)
         self._draw_weapon_arc_preview(screen, map_w)
@@ -780,8 +826,9 @@ class BattleScreen(BaseScreen):
             return
 
         weapon = self.player.weapons[self.hovered_player_weapon_idx]
-        cx = int(round(self.player.x - self.map_view_x))
-        cy = int(round(self.player.y - self.map_view_y))
+        center = self._world_to_screen((self.player.x, self.player.y))
+        cx = int(round(center[0]))
+        cy = int(round(center[1]))
         if cx < 0 or cx >= map_w or cy < 0 or cy >= self.screen_h:
             return
 
@@ -881,12 +928,10 @@ class BattleScreen(BaseScreen):
         progress = max(0.0, min(1.0, elapsed / duration))
         beam_w = max(2, int(7 * (1.0 - progress)))
         start = (
-            self.attack_animation["start"][0] - self.map_view_x,
-            self.attack_animation["start"][1] - self.map_view_y,
+            *self._world_to_screen(self.attack_animation["start"]),
         )
         target = (
-            self.attack_animation["target"][0] - self.map_view_x,
-            self.attack_animation["target"][1] - self.map_view_y,
+            *self._world_to_screen(self.attack_animation["target"]),
         )
 
         old_clip = screen.get_clip()

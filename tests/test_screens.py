@@ -86,6 +86,13 @@ class TestScreens(unittest.TestCase):
         return event
 
     @staticmethod
+    def _wheel_event(y):
+        event = MagicMock()
+        event.type = pygame.MOUSEWHEEL
+        event.y = y
+        return event
+
+    @staticmethod
     def _key_event(key, mod=0):
         event = MagicMock()
         event.type = pygame.KEYDOWN
@@ -164,6 +171,20 @@ class TestScreens(unittest.TestCase):
     def test_cpu_starts_with_three_lasers(self):
         self.assertEqual(len(self.screen.cpu.weapons), 3)
         self.assertTrue(all(w.name == "Laser" for w in self.screen.cpu.weapons))
+
+    def test_ship_weapon_mount_config_applies_facing_and_arc(self):
+        self.screen.ship_configs["player"]["weapons"] = [
+            {"name": "Laser", "facing_deg": 45},
+            {"name": "Laser", "facing_deg": 315, "firing_arc_deg": 150},
+            {"name": "Ion Beam", "facing_deg": 180},
+        ]
+
+        player, _ = self.screen._make_game()
+        self.assertEqual(len(player.weapons), 3)
+        self.assertEqual([w.facing_deg for w in player.weapons], [45.0, 315.0, 180.0])
+        self.assertEqual(player.weapons[0].firing_arc_deg, 120.0)
+        self.assertEqual(player.weapons[1].firing_arc_deg, 150.0)
+        self.assertEqual(player.weapons[2].firing_arc_deg, 60.0)
 
     def test_ship_profiles_are_loaded_from_config(self):
         self.assertEqual(self.screen.player.name, "Alliance cruiser")
@@ -861,6 +882,51 @@ class TestScreens(unittest.TestCase):
 
         self.assertEqual(self.screen.map_view_x, max_x)
         self.assertEqual(self.screen.map_view_y, max_y)
+
+    def test_map_zoom_defaults_to_one_with_expected_limits(self):
+        self.assertEqual(self.screen.map_zoom, 1.0)
+        self.assertEqual(self.screen.default_map_zoom, 1.0)
+        self.assertEqual(self.screen.min_map_zoom, 0.5)
+        self.assertEqual(self.screen.max_map_zoom, 2.5)
+
+    @patch("pygame.mouse.get_pos", return_value=(200, 220))
+    @patch("pygame.time.get_ticks")
+    def test_mousewheel_zoom_is_centered_on_cursor(self, mock_get_ticks, _mock_mouse_pos):
+        mock_get_ticks.return_value = 1000
+        self.screen.map_view_x = 400.0
+        self.screen.map_view_y = 300.0
+        before = self.screen._screen_to_world((200, 220))
+
+        self.screen.handle_event(self._wheel_event(1))
+
+        after = self.screen._screen_to_world((200, 220))
+        self.assertGreater(self.screen.map_zoom, 1.0)
+        self.assertAlmostEqual(before[0], after[0], places=4)
+        self.assertAlmostEqual(before[1], after[1], places=4)
+
+    @patch("pygame.mouse.get_pos", return_value=(220, 240))
+    @patch("pygame.time.get_ticks")
+    def test_mousewheel_zoom_clamps_to_min_and_max(self, mock_get_ticks, _mock_mouse_pos):
+        mock_get_ticks.return_value = 1000
+        self.screen.map_zoom = self.screen.max_map_zoom
+
+        self.screen.handle_event(self._wheel_event(1))
+        self.assertEqual(self.screen.map_zoom, self.screen.max_map_zoom)
+
+        self.screen.map_zoom = self.screen.min_map_zoom
+        self.screen.handle_event(self._wheel_event(-1))
+        self.assertEqual(self.screen.map_zoom, self.screen.min_map_zoom)
+
+    @patch("pygame.time.get_ticks")
+    def test_screen_to_world_respects_zoom(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.map_view_x = 300.0
+        self.screen.map_view_y = 200.0
+        self.screen.map_zoom = 2.0
+
+        wx, wy = self.screen._screen_to_world((100, 60))
+        self.assertEqual(wx, 350.0)
+        self.assertEqual(wy, 230.0)
 
     @patch("pygame.time.get_ticks")
     def test_virtual_map_allows_movement_beyond_visible_width(self, mock_get_ticks):

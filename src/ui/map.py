@@ -118,6 +118,7 @@ class Map:
         waypoints: list[tuple[float, float]],
         view_x: float,
         view_y: float,
+        zoom: float,
     ) -> None:
         if not waypoints:
             return
@@ -142,21 +143,23 @@ class Map:
                     continue
                 t0 = dash_idx / dash_count
                 t1 = min(1.0, (dash_idx + 1) / dash_count)
-                sx = int(x1 + seg_dx * t0 - view_x)
-                sy = int(y1 + seg_dy * t0 - view_y)
-                ex = int(x1 + seg_dx * t1 - view_x)
-                ey = int(y1 + seg_dy * t1 - view_y)
+                sx = int(round((x1 + seg_dx * t0 - view_x) * zoom))
+                sy = int(round((y1 + seg_dy * t0 - view_y) * zoom))
+                ex = int(round((x1 + seg_dx * t1 - view_x) * zoom))
+                ey = int(round((y1 + seg_dy * t1 - view_y) * zoom))
                 pygame.draw.line(surf, route_color, (sx, sy), (ex, ey), 2)
 
         final_x, final_y = waypoints[-1]
         ghost = pygame.Surface((SHIP_ICON_SIZE, SHIP_ICON_SIZE), pygame.SRCALPHA)
         draw_player_icon(ghost, SHIP_ICON_SIZE // 2, SHIP_ICON_SIZE // 2, SHIP_ICON_SIZE)
         ghost.set_alpha(110)
+        final_sx = (final_x - view_x) * zoom
+        final_sy = (final_y - view_y) * zoom
         surf.blit(
             ghost,
             (
-                int(final_x - view_x - SHIP_ICON_SIZE // 2),
-                int(final_y - view_y - SHIP_ICON_SIZE // 2),
+                int(round(final_sx - SHIP_ICON_SIZE // 2)),
+                int(round(final_sy - SHIP_ICON_SIZE // 2)),
             ),
         )
 
@@ -173,28 +176,30 @@ class Map:
         waypoints: list[tuple[float, float]] | None = None,
         view_x: float = 0.0,
         view_y: float = 0.0,
+        zoom: float = 1.0,
     ) -> None:
         map_h = surf.get_height()
         clip_rect = pygame.Rect(0, 0, map_w, map_h)
         surf.set_clip(clip_rect)
 
         for star_x, star_y, brightness, size in self.stars:
-            sx = int(star_x - view_x)
-            sy = int(star_y - view_y)
+            sx = int(round((star_x - view_x) * zoom))
+            sy = int(round((star_y - view_y) * zoom))
             if 0 <= sx < map_w and 0 <= sy < map_h:
                 c = (brightness, brightness, brightness)
-                if size <= 1:
+                draw_size = max(1, int(round(size * zoom)))
+                if draw_size <= 1:
                     surf.set_at((sx, sy), c)
                 else:
-                    pygame.draw.circle(surf, c, (sx, sy), size // 2)
+                    pygame.draw.circle(surf, c, (sx, sy), max(1, draw_size // 2))
 
         surf.set_clip(None)
         pygame.draw.line(surf, PANEL_BORDER, (map_w, 0), (map_w, map_h), 1)
-        self._draw_ghost_route(surf, player, waypoints or [], view_x, view_y)
+        self._draw_ghost_route(surf, player, waypoints or [], view_x, view_y, zoom)
 
         # CPU
-        cpu_cx = int(cpu.x - view_x)
-        cpu_cy = int(cpu.y - view_y)
+        cpu_cx = int(round((cpu.x - view_x) * zoom))
+        cpu_cy = int(round((cpu.y - view_y) * zoom))
         icon_size = SHIP_ICON_SIZE
         if is_running and winner is None:
             self._draw_shield_segments(surf, cpu, cpu_cx, cpu_cy, BLUE, icon_size // 2 + 10)
@@ -204,8 +209,8 @@ class Map:
             centerx=cpu_cx, top=cpu_cy + icon_size // 2 + 12))
 
         # Player
-        player_cx = int(player.x - view_x)
-        player_cy = int(player.y - view_y)
+        player_cx = int(round((player.x - view_x) * zoom))
+        player_cy = int(round((player.y - view_y) * zoom))
         if is_running and winner is None:
             self._draw_shield_segments(
                 surf,
