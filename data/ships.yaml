@@ -6,9 +6,11 @@ player:
   rotation_speed_deg_s: 30.0
   weapons:
     - name: Laser
-      count: 2
+      facing_deg: 0
+    - name: Laser
+      facing_deg: 0
     - name: Ion Beam
-      count: 1
+      facing_deg: 0
 
 computer:
   name: Gorlach cruiser
@@ -18,4 +20,8 @@ computer:
   rotation_speed_deg_s: 15.0
   weapons:
     - name: Laser
-      count: 3
+      facing_deg: 0
+    - name: Laser
+      facing_deg: 0
+    - name: Laser
+      facing_deg: 0

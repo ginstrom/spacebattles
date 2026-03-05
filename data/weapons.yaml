@@ -6,7 +6,6 @@ Laser:
   charges: null
   weapon_type: light
   firing_arc_deg: 120
-  facing_deg: 0
 
 Ion Beam:
   damage_min: 80
@@ -16,4 +15,3 @@ Ion Beam:
   charges: null
   weapon_type: heavy
   firing_arc_deg: 60
-  facing_deg: 0
