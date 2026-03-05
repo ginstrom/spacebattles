@@ -17,6 +17,17 @@ class Weapon:
     hit_chance: int
     current_cooldown_seconds: float = 0.0
     charges: int | None = None  # None = infinite, else consumes
+    weapon_type: str = "heavy"
+    tech_level: int = 1
+    firing_arc_deg: float = 60.0
+
+    @staticmethod
+    def _default_weapon_type(name: str) -> str:
+        return "light" if "laser" in name.lower() else "heavy"
+
+    @staticmethod
+    def _base_arc_for_type(weapon_type: str) -> float:
+        return 120.0 if weapon_type.lower() == "light" else 60.0
 
     @staticmethod
     def load_weapons(file_path: str | Path) -> dict[str, "Weapon"]:
@@ -25,12 +36,24 @@ class Weapon:
 
         weapons = {}
         for wname, stats in data.items():
+            weapon_type = str(stats.get("weapon_type", Weapon._default_weapon_type(wname)))
+            tech_level = max(1, int(stats.get("tech_level", 1)))
+            if "firing_arc_deg" in stats:
+                firing_arc_deg = float(stats["firing_arc_deg"])
+            else:
+                base_arc = Weapon._base_arc_for_type(weapon_type)
+                tech_arc_bonus = float(stats.get("tech_arc_bonus_deg_per_level", 0.0))
+                firing_arc_deg = base_arc + (tech_level - 1) * tech_arc_bonus
+            firing_arc_deg = max(5.0, min(360.0, firing_arc_deg))
             weapons[wname] = Weapon(
                 name=wname,
                 damage_range=(stats["damage_min"], stats["damage_max"]),
                 cooldown=stats["cooldown"],
                 hit_chance=stats["hit_chance"],
-                charges=stats.get("charges")
+                charges=stats.get("charges"),
+                weapon_type=weapon_type,
+                tech_level=tech_level,
+                firing_arc_deg=firing_arc_deg,
             )
         return weapons
 

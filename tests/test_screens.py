@@ -329,6 +329,21 @@ class TestScreens(unittest.TestCase):
             self.assertEqual(self.screen.queued_player_attacks, [0])
 
     @patch("pygame.time.get_ticks")
+    def test_handle_event_weapon_click_when_running_queues_if_target_out_of_arc(self, mock_get_ticks):
+        mock_get_ticks.return_value = 1000
+        self.screen.is_paused = False
+        self.screen.weapon_buttons = {0: pygame.Rect(100, 100, 50, 50)}
+        self.screen.player.heading = 0.0
+        self.screen.player.weapons[0].firing_arc_deg = 60.0
+        self.screen.cpu.x = self.screen.player.x
+        self.screen.cpu.y = self.screen.player.y + 250.0
+
+        with patch("src.systems.combat.CombatSystem.execute_attack") as mock_attack:
+            self.screen.handle_event(self._mouse_event())
+            mock_attack.assert_not_called()
+            self.assertEqual(self.screen.queued_player_attacks, [0])
+
+    @patch("pygame.time.get_ticks")
     def test_handle_event_weapon_click_when_running_unqueues_if_already_queued(self, mock_get_ticks):
         mock_get_ticks.return_value = 1000
         self.screen.is_paused = False
@@ -405,6 +420,44 @@ class TestScreens(unittest.TestCase):
             mock_attack.assert_called_once()
             self.assertEqual(self.screen.queued_player_attacks, [])
 
+    @patch("pygame.time.get_ticks")
+    def test_update_keeps_queued_weapon_until_target_enters_firing_arc(self, mock_get_ticks):
+        self.screen.is_paused = False
+        self.screen.cpu_fire_at_ms = None
+        self.screen.player.speed_px_s = 0.0
+        self.screen.cpu.speed_px_s = 0.0
+        self.screen.queued_player_attacks = [0]
+        self.screen.player.weapons[0].firing_arc_deg = 60.0
+        self.screen.player.heading = 0.0
+        self.screen.cpu.x = self.screen.player.x
+        self.screen.cpu.y = self.screen.player.y + 250.0
+        mock_get_ticks.return_value = 2000
+
+        with patch("src.systems.combat.CombatSystem.execute_attack") as mock_attack:
+            mock_attack.return_value = (True, 40)
+            self.screen.update(16)
+            mock_attack.assert_not_called()
+            self.assertEqual(self.screen.queued_player_attacks, [0])
+
+            self.screen.player.heading = 180.0
+            self.screen.update(16)
+            mock_attack.assert_called_once()
+            self.assertEqual(self.screen.queued_player_attacks, [])
+
+    @patch("pygame.time.get_ticks")
+    def test_cpu_does_not_fire_when_player_out_of_arc(self, mock_get_ticks):
+        self.screen.is_paused = False
+        self.screen.cpu_fire_at_ms = 1000
+        self.screen.cpu.rotation_speed_deg_s = 0.0
+        self.screen.cpu.heading = 0.0
+        for weapon in self.screen.cpu.weapons:
+            weapon.firing_arc_deg = 60.0
+        mock_get_ticks.return_value = 2000
+
+        with patch("src.systems.combat.CombatSystem.execute_attack") as mock_attack:
+            self.screen.update(16)
+            mock_attack.assert_not_called()
+
     @patch("pygame.draw.rect")
     @patch("pygame.draw.line")
     @patch("pygame.time.get_ticks")
@@ -447,6 +500,20 @@ class TestScreens(unittest.TestCase):
         red_beam_calls = [c for c in mock_line.call_args_list if c.args[1] == (230, 80, 80)]
         self.assertTrue(red_beam_calls)
         self.assertEqual(red_beam_calls[-1].args[3], (450, 0))
+
+    @patch("pygame.draw.line")
+    @patch("pygame.draw.arc")
+    def test_draw_weapon_arc_preview_shows_when_hovering_weapon_card(self, mock_arc, mock_line):
+        self.screen.hovered_player_weapon_idx = 0
+        self.screen.panel_expanded = True
+        self.screen.weapon_buttons = {0: pygame.Rect(WIDTH - PANEL_W + 20, 100, 80, 32)}
+        self.screen.player.weapons[0].firing_arc_deg = 120.0
+
+        render_surface = pygame.Surface((WIDTH, HEIGHT))
+        self.screen._draw_weapon_arc_preview(render_surface, WIDTH - PANEL_W)
+
+        self.assertTrue(mock_arc.called)
+        self.assertTrue(mock_line.called)
 
     @patch("pygame.time.get_ticks")
     def test_space_works_when_keyup_lost(self, mock_get_ticks):

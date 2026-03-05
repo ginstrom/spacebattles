@@ -419,6 +419,7 @@ class TestUI(unittest.TestCase):
         render_texts = [call.args[0] for call in self.mock_font.render.call_args_list]
         self.assertTrue(any("(3.4s)" in text for text in render_texts))
         self.assertTrue(any("Cooldown: 5.0s" in text for text in render_texts))
+        self.assertTrue(any("Arc: 60deg" in text for text in render_texts))
 
 
 if __name__ == "__main__":

@@ -4,6 +4,8 @@ Laser:
   cooldown: 2
   hit_chance: 90
   charges: null
+  weapon_type: light
+  firing_arc_deg: 120
 
 Ion Beam:
   damage_min: 80
@@ -11,3 +13,5 @@ Ion Beam:
   cooldown: 3
   hit_chance: 75
   charges: null
+  weapon_type: heavy
+  firing_arc_deg: 60

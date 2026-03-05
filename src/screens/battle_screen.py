@@ -58,6 +58,7 @@ class BattleScreen(BaseScreen):
         self.cpu_weapon_buttons = {}
         self.cpu_weapon_detail_toggles = {}
         self.cpu_expanded_weapons = set()
+        self.hovered_player_weapon_idx: int | None = None
         self.ui_elements = {}
         self.panel_expanded = True
         self.attack_animation = None
@@ -185,6 +186,41 @@ class BattleScreen(BaseScreen):
     def _heading_delta_deg(a: float, b: float) -> float:
         return abs((a - b + 180.0) % 360.0 - 180.0)
 
+    @staticmethod
+    def _signed_heading_delta_deg(target_heading: float, current_heading: float) -> float:
+        return (target_heading - current_heading + 540.0) % 360.0 - 180.0
+
+    @staticmethod
+    def _heading_to_target(attacker: Ship, defender: Ship) -> float:
+        dx = defender.x - attacker.x
+        dy = defender.y - attacker.y
+        return math.degrees(math.atan2(dx, -dy)) % 360.0
+
+    def _is_target_in_weapon_arc(self, attacker: Ship, defender: Ship, weapon: Weapon) -> bool:
+        if weapon.firing_arc_deg >= 360.0:
+            return True
+        target_heading = self._heading_to_target(attacker, defender)
+        delta = self._signed_heading_delta_deg(target_heading, attacker.heading % 360.0)
+        return abs(delta) <= (weapon.firing_arc_deg / 2.0)
+
+    def _player_weapon_block_reason(self, weapon: Weapon) -> str | None:
+        if weapon.current_cooldown_seconds > 0.0:
+            return f"cooling down ({weapon.current_cooldown_seconds:.1f}s)"
+        if weapon.charges is not None and weapon.charges <= 0:
+            return "out of charges"
+        if not self._is_target_in_weapon_arc(self.player, self.cpu, weapon):
+            return "target outside firing arc"
+        return None
+
+    def _update_hovered_player_weapon(self, mouse_pos: tuple[int, int]) -> None:
+        self.hovered_player_weapon_idx = None
+        if not self.panel_expanded:
+            return
+        for idx, rect in self.weapon_buttons.items():
+            if rect.collidepoint(mouse_pos):
+                self.hovered_player_weapon_idx = idx
+                return
+
     def _update_cpu_follow_heading_delay(self, now_ms: int) -> None:
         current_heading = self.player.heading % 360.0
         if self.cpu_pending_follow_heading_deg is None:
@@ -265,6 +301,9 @@ class BattleScreen(BaseScreen):
                         template.hit_chance,
                         0,
                         template.charges,
+                        template.weapon_type,
+                        template.tech_level,
+                        template.firing_arc_deg,
                     )
                 )
         return result
@@ -274,6 +313,8 @@ class BattleScreen(BaseScreen):
             return False
         weapon = self.player.weapons[weapon_idx]
         if not weapon.can_fire():
+            return False
+        if not self._is_target_in_weapon_arc(self.player, self.cpu, weapon):
             return False
 
         hit, dmg = CombatSystem.execute_attack(self.player, weapon, self.cpu)
@@ -369,6 +410,7 @@ class BattleScreen(BaseScreen):
                 self.cpu_weapon_buttons.clear()
                 self.cpu_weapon_detail_toggles.clear()
                 self.cpu_expanded_weapons.clear()
+                self.hovered_player_weapon_idx = None
                 self.ui_elements.clear()
                 self.turn_left_held = False
                 self.turn_right_held = False
@@ -444,6 +486,9 @@ class BattleScreen(BaseScreen):
                 self._clamp_map_view()
             self.map_drag_last_pos = event.pos
             return
+        if event.type == pygame.MOUSEMOTION:
+            self._update_hovered_player_weapon(event.pos)
+            return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.pause_menu_visible:
             buttons = self._pause_menu_buttons()
@@ -494,6 +539,7 @@ class BattleScreen(BaseScreen):
                 self.weapon_detail_toggles.clear()
                 self.cpu_weapon_buttons.clear()
                 self.cpu_weapon_detail_toggles.clear()
+                self.hovered_player_weapon_idx = None
                 self.ui_elements.clear()
             else:
                 # Check player weapon detail toggles
@@ -523,6 +569,11 @@ class BattleScreen(BaseScreen):
                                     self.queued_player_attacks.remove(idx)
                                 else:
                                     self.queued_player_attacks.append(idx)
+                                    reason = self._player_weapon_block_reason(self.player.weapons[idx])
+                                    if reason is not None:
+                                        self.message = (
+                                            f"{self.player.weapons[idx].name} queued: {reason}."
+                                        )
                             break
                 else:
                     for idx, btn_rect in self.weapon_buttons.items():
@@ -581,7 +632,9 @@ class BattleScreen(BaseScreen):
 
         if self.queued_player_attacks and self.winner is None:
             queued_idx = self.queued_player_attacks[0]
-            if self._fire_player_weapon(queued_idx, now):
+            if not (0 <= queued_idx < len(self.player.weapons)):
+                self.queued_player_attacks.pop(0)
+            elif self._fire_player_weapon(queued_idx, now):
                 self.queued_player_attacks.pop(0)
             if self.winner is not None:
                 return
@@ -623,9 +676,12 @@ class BattleScreen(BaseScreen):
         self._enforce_minimum_ship_separation()
 
         if self.cpu_fire_at_ms is not None and now >= self.cpu_fire_at_ms:
-            available = [w for w in self.cpu.weapons if w.can_fire()]
-            if available:
-                weapon = random.choice(available)
+            available_indices = [
+                idx for idx, weapon in enumerate(self.cpu.weapons)
+                if weapon.can_fire() and self._is_target_in_weapon_arc(self.cpu, self.player, weapon)
+            ]
+            if available_indices:
+                weapon = self.cpu.weapons[random.choice(available_indices)]
                 hit, dmg = CombatSystem.execute_attack(
                     self.cpu, weapon, self.player)
                 self._start_attack_animation(
@@ -723,6 +779,7 @@ class BattleScreen(BaseScreen):
             self.map_view_y,
         )
         self._draw_attack_animation(screen, map_w)
+        self._draw_weapon_arc_preview(screen, map_w)
 
         if self.panel_expanded:
             self._draw_side_panel(screen, panel_x)
@@ -738,6 +795,43 @@ class BattleScreen(BaseScreen):
             self._draw_winner_overlay(screen)
 
         self._draw_demo_cursor(screen, map_w)
+
+    def _draw_weapon_arc_preview(self, screen: pygame.Surface, map_w: int) -> None:
+        if self.hovered_player_weapon_idx is None:
+            return
+        if not self.panel_expanded:
+            return
+        if self.hovered_player_weapon_idx not in self.weapon_buttons:
+            return
+        if not (0 <= self.hovered_player_weapon_idx < len(self.player.weapons)):
+            return
+
+        weapon = self.player.weapons[self.hovered_player_weapon_idx]
+        cx = int(round(self.player.x - self.map_view_x))
+        cy = int(round(self.player.y - self.map_view_y))
+        if cx < 0 or cx >= map_w or cy < 0 or cy >= self.screen_h:
+            return
+
+        radius = SHIP_ICON_SIZE // 2 + 28
+        rect = pygame.Rect(cx - radius, cy - radius, radius * 2, radius * 2)
+        half_arc = weapon.firing_arc_deg / 2.0
+        start_heading = (self.player.heading - half_arc) % 360.0
+        end_heading = (self.player.heading + half_arc) % 360.0
+        start_rad = math.radians(90.0 - end_heading)
+        end_rad = math.radians(90.0 - start_heading)
+        if end_rad <= start_rad:
+            end_rad += 2.0 * math.pi
+
+        overlay = pygame.Surface((map_w, self.screen_h), pygame.SRCALPHA)
+        arc_color = (90, 180, 255, 190)
+        line_color = (90, 180, 255, 140)
+        pygame.draw.arc(overlay, arc_color, rect, start_rad, end_rad, 3)
+        for heading in (start_heading, end_heading):
+            heading_rad = math.radians(heading)
+            ex = int(round(cx + math.sin(heading_rad) * radius))
+            ey = int(round(cy - math.cos(heading_rad) * radius))
+            pygame.draw.line(overlay, line_color, (cx, cy), (ex, ey), 2)
+        screen.blit(overlay, (0, 0))
 
     def _draw_demo_cursor(self, screen, map_w: int) -> None:
         if not self.demo_script_enabled or self.demo_cursor_screen_pos is None:
