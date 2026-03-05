@@ -107,6 +107,52 @@ class TestCombat(unittest.TestCase):
         self.assertEqual(defender.hull_hp, 0)
         self.assertTrue(defender.is_dead())
 
+    def test_effective_hit_chance_drops_with_distance(self):
+        weapon = Weapon(
+            "Laser",
+            (10, 10),
+            cooldown=1,
+            hit_chance=90,
+            accuracy_falloff_per_100px=4.0,
+            min_hit_chance=50,
+        )
+        self.assertEqual(weapon.effective_hit_chance(0.0), 90)
+        self.assertEqual(weapon.effective_hit_chance(250.0), 80)
+        self.assertEqual(weapon.effective_hit_chance(2000.0), 50)
+
+    def test_damage_multiplier_drops_with_distance(self):
+        weapon = Weapon(
+            "Ion Beam",
+            (100, 100),
+            cooldown=1,
+            hit_chance=90,
+            damage_falloff_per_100px=0.1,
+            min_damage_multiplier=0.4,
+        )
+        self.assertAlmostEqual(weapon.effective_damage_multiplier(0.0), 1.0)
+        self.assertAlmostEqual(weapon.effective_damage_multiplier(200.0), 0.8)
+        self.assertAlmostEqual(weapon.effective_damage_multiplier(1000.0), 0.4)
+
+    def test_execute_attack_applies_distance_damage_falloff(self):
+        weapon = Weapon(
+            "Ion Beam",
+            (100, 100),
+            cooldown=1,
+            hit_chance=100,
+            accuracy_falloff_per_100px=0.0,
+            damage_falloff_per_100px=0.2,
+            min_damage_multiplier=0.2,
+            charges=1,
+        )
+        attacker = Ship("Attacker", 100, 100, [weapon], x=0.0, y=-500.0)
+        defender = Ship("Defender", 100, 100, [], x=0.0, y=0.0, heading=0.0)
+        defender.shields = [0, 0, 0, 0, 0, 0]
+
+        success, dmg = CombatSystem.execute_attack(attacker, weapon, defender)
+        self.assertTrue(success)
+        self.assertEqual(dmg, 20)
+        self.assertEqual(defender.hull_hp, 80)
+
 
 if __name__ == '__main__':
     unittest.main()
