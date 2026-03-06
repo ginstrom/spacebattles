@@ -37,7 +37,7 @@ Hell Beam:
   damage_falloff_per_100px: 0.22
   min_damage_multiplier: 0.1
 
-Protom Beam:
+Photon Beam:
   damage_min: 70
   damage_max: 110
   cooldown: 6

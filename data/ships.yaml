@@ -9,7 +9,7 @@ player:
       facing_deg: 0
     - name: Laser
       facing_deg: 0
-    - name: Protom Beam
+    - name: Photon Beam
       facing_deg: 0
 
 computer:

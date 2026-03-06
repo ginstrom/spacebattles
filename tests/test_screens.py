@@ -177,7 +177,7 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(hell_beam.cooldown, 3)
 
     def test_player_loadout_includes_protom_beam(self):
-        self.assertEqual([w.name for w in self.screen.player.weapons], ["Laser", "Laser", "Protom Beam"])
+        self.assertEqual([w.name for w in self.screen.player.weapons], ["Laser", "Laser", "Photon Beam"])
         self.assertEqual(self.screen.player.weapons[2].cooldown, 6)
 
     def test_ship_weapon_mount_config_applies_facing_and_arc(self):
